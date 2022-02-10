@@ -1,0 +1,7 @@
+name = "Mikrubia"
+uuid = "159ff983-040b-46d0-becf-ad241182f0a8"
+authors = ["Yu-Chang Yang <yang.yc.allium@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Optim = "429524aa-4258-5aef-a3af-852621145aeb"

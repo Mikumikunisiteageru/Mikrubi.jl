@@ -2,3 +2,7 @@ name = "Mikrubi"
 uuid = "e69011f5-f054-4fb1-b078-ffdea733e4f7"
 authors = ["Yu-Chang Yang <yang.yc.allium@gmail.com>"]
 version = "0.1.0"
+
+[deps]
+Optim = "429524aa-4258-5aef-a3af-852621145aeb"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

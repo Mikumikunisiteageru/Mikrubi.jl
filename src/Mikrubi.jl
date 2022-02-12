@@ -4,18 +4,20 @@ export MikrubiField, logistic, loglogistic, fit, absence, presence
 
 import Optim
 
-Array{T, 2}(a::Array{T, 1}) where {T <: Real} = repeat(a, 1, 1)
+Matrix{T}(a::Vector{T}) where {T <: Real} = repeat(a, 1, 1)
 
-struct MikrubiField{T, U <: Real, V <: Real}
+struct MikrubiField{T, U <: Real, V <: AbstractFloat}
 	pixel_ids::Array{T, 1}
 	pixel_locs::Array{U}
 	pixel_vars::Array{V, 2}
 	n::Int
+	m::Int
+	ids::Vector{T}
 	starts::Dict{T, Int}
 	stops::Dict{T, Int}
 	d::Int
 	function MikrubiField(pixel_ids::Array{T}, pixel_locs::Array{U}, 
-					  pixel_vars::Array{V}) where {T, U <: Real, V <: Real}
+			pixel_vars::Array{V}) where {T, U <: Real, V <: AbstractFloat}
 		n = length(pixel_ids)
 		n == size(pixel_locs, 1) == size(pixel_vars, 1) ||
 			error("Numbers of rows are inconsistent!")
@@ -25,10 +27,13 @@ struct MikrubiField{T, U <: Real, V <: Real}
 			pixel_locs = pixel_locs[perm, :]
 			pixel_vars = pixel_vars[perm, :]
 		end
+		ids = unique(pixel_ids)
+		m = length(ids)
 		starts = Dict(reverse(pixel_ids) .=> n:-1:1)
 		stops = Dict(pixel_ids .=> 1:n)
 		d = size(pixel_vars, 2)
-		new{T, U, V}(pixel_ids, pixel_locs, pixel_vars, n, starts, stops, d)
+		new{T, U, V}(pixel_ids, pixel_locs, pixel_vars, n, m, ids,
+			starts, stops, d)
 	end
 end
 
@@ -65,16 +70,41 @@ function energy(field::MikrubiField, occupieds::Union{Array, Set}, params::Array
 end
 
 function fit(field::MikrubiField, occupieds::Union{Array, Set}; kwargs...)
-	params = zeros(((field.d+1) * (field.d+2)) >> 1)
-	occupieds_ = intersect(occupieds, field.pixel_ids)
+	occupieds_ = intersect(occupieds, field.ids)
 	isempty(occupieds_) && error("No meaningful occupied units!")
 	fun(params) = energy(field, occupieds_, params)
-	result = Optim.optimize(fun, params; kwargs...)
+	zeroes = zeros(((field.d+1) * (field.d+2)) >> 1)
+	result = Optim.optimize(fun, zeroes; kwargs...)
 	result.ls_success || println("Warning: Not converged yet!")
-	result.minimizer
+	MikrubiModel(field, result.minimizer)
 end
 
-absence(field::MikrubiField, params::Array) = exp.(loglike(field, params))
-presence(field::MikrubiField, params::Array) = 1. .- absence(field, params)
+struct MikrubiModel{T, U <: Real, V <: AbstractFloat}
+	field::MikrubiField{T, U, V}
+	params::Vector{V}
+	pr_cell::Vector{V}
+	pr_county::Dict{T, V}
+	function MikrubiModel(field::MikrubiField{T, U, V}, 
+			params::Vector{V}) where {T, U <: Real, V <: AbstractFloat}
+		ll = loglike(field, params)
+		pr_cell = 1. .- exp.(ll)
+		t = Dict{T, V}()
+		for i = 1:field.n
+			id = field.pixel_ids[i]
+			t[id] = ll[i] + get(t, id, 0)
+		end
+		pr_county = Dict{T, V}()
+		for id = field.ids
+			pr_county[id] = 1. - exp(t[id])
+		end
+		new{T, U, V}(field, params, pr_cell, pr_county)
+	end
+end
+
+function sample(model::MikrubiModel)
+	pr_county = model.pr_county
+	@inline bernoulli(p) = rand() <= p
+	sort!([k for k = keys(pr_county) if bernoulli(pr_county[k])])
+end
 
 end # module

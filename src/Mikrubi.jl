@@ -7,9 +7,9 @@ import Optim
 Matrix{T}(a::Vector{T}) where {T <: Real} = repeat(a, 1, 1)
 
 struct MikrubiField{T, U <: Real, V <: AbstractFloat}
-	pixel_ids::Array{T, 1}
+	pixel_ids::Vector{T}
 	pixel_locs::Array{U}
-	pixel_vars::Array{V, 2}
+	pixel_vars::Matrix{V}
 	n::Int
 	m::Int
 	ids::Vector{T}

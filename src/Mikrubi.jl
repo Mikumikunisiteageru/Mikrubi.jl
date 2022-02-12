@@ -1,6 +1,6 @@
 module Mikrubi
 
-export MikrubiField, logistic, loglogistic, fit, absence, presence
+export MikrubiField, logistic, loglogistic, fit, MikrubiModel, sample
 
 import Optim
 

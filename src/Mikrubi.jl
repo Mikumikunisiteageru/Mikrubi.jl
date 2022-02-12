@@ -57,7 +57,7 @@ function loglike(field::MikrubiField, params::Array)
 	loglogistic.(sum((pv * A) .^ 2, dims=2)[:] .+ pv * b .+ c)
 end
 
-function energy(field::MikrubiField, occupieds::Union{Array, Set}, params::Array)
+function energy(field::MikrubiField, occupieds, params::Array)
 	e = loglike(field, params)
 	for o = occupieds
 		start = field.starts[o]
@@ -69,7 +69,7 @@ function energy(field::MikrubiField, occupieds::Union{Array, Set}, params::Array
 	- sum(e)
 end
 
-function fit(field::MikrubiField, occupieds::Union{Array, Set}; kwargs...)
+function fit(field::MikrubiField, occupieds; kwargs...)
 	occupieds_ = intersect(occupieds, field.ids)
 	isempty(occupieds_) && error("No meaningful occupied units!")
 	fun(params) = energy(field, occupieds_, params)

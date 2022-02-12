@@ -74,8 +74,8 @@ function fit(field::MikrubiField, occupieds::Union{Array, Set}; kwargs...)
 	isempty(occupieds_) && error("No meaningful occupied units!")
 	fun(params) = energy(field, occupieds_, params)
 	zeroes = zeros(((field.d+1) * (field.d+2)) >> 1)
-	result = Optim.optimize(fun, zeroes; kwargs...)
-	result.ls_success || println("Warning: Not converged yet!")
+	result = Optim.optimize(fun, zeroes, iterations=3000000; kwargs...)
+	result.iteration_converged && println("Warning: Not converged yet!")
 	MikrubiModel(field, result.minimizer)
 end
 

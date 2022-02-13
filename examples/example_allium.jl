@@ -1,9 +1,9 @@
-# Allium_example.jl
+# example_allium.jl
 
 using DelimitedFiles
 using Mikrubi
 
-data = readdlm("China_Field.tsv")
+data = readdlm("china_field.tsv")
 china = MikrubiField(Int.(data[:, 1]), data[:, 2:3], data[:, 4:6])
 allium = [2858, 68, 22, 17, 72, 2859, 16, 2770, 33, 233, 89, 73, 18, 
           2768, 74, 59, 92, 34, 69, 3, 35, 19, 38, 2850, 79, 2765, 2853, 

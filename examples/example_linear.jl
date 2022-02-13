@@ -1,4 +1,4 @@
-# Linear_Example.jl
+# example_linear.jl
 
 using Mikrubi
 

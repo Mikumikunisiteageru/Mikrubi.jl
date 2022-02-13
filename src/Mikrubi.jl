@@ -19,19 +19,22 @@ struct MikrubiField{T, U <: Real, V <: AbstractFloat}
 	d::Int
 	function MikrubiField(pixel_ids::Array{T}, pixel_locs::Array{U}, 
 			pixel_vars::Array{V}) where {T, U <: Real, V <: AbstractFloat}
+		pixel_ids  = copy(pixel_ids)
+		pixel_locs = copy(pixel_locs)
+		pixel_vars = copy(pixel_vars)
 		n = length(pixel_ids)
 		n == size(pixel_locs, 1) == size(pixel_vars, 1) ||
 			error("Numbers of rows are inconsistent!")
 		if ! issorted(pixel_ids)
 			perm = sortperm(pixel_ids)
-			pixel_ids = pixel_ids[perm]
+			pixel_ids  = pixel_ids[perm]
 			pixel_locs = pixel_locs[perm, :]
 			pixel_vars = pixel_vars[perm, :]
 		end
 		ids = unique(pixel_ids)
 		m = length(ids)
 		starts = Dict(reverse(pixel_ids) .=> n:-1:1)
-		stops = Dict(pixel_ids .=> 1:n)
+		stops  = Dict(        pixel_ids  .=> 1:n   )
 		d = size(pixel_vars, 2)
 		new{T, U, V}(pixel_ids, pixel_locs, pixel_vars, n, m, ids,
 			starts, stops, d)

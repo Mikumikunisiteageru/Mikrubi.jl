@@ -5,6 +5,7 @@ export MikrubiField, logistic, loglogistic, fit, MikrubiModel, sample
 import Optim
 
 Matrix{T}(a::Vector{T}) where {T <: Real} = repeat(a, 1, 1)
+Array{AbstractFloat}(a::Array) = AbstractFloat.(a)
 
 struct MikrubiField{T, U <: Real, V <: AbstractFloat}
 	pixel_ids::Vector{T}
@@ -37,11 +38,24 @@ struct MikrubiField{T, U <: Real, V <: AbstractFloat}
 	end
 end
 
-logistic(x :: Real) = 1. ./ (1. + exp(-x))
-loglogistic(x :: Real) = -log(1. + exp(-x))
+function MikrubiField(pixel_ids::Array{T}, pixel_locs::Array{U}, 
+		pixel_vars::Array{V}) where {T, U <: Real, V <: Real}
+	MikrubiField(pixel_ids, pixel_locs, Float64.(pixel_vars))
+end	
 
-function param_decompose(p::Array, d::Int)
-	A = zeros(d, d)
+function Base.show(io::IO, field::MikrubiField)
+	print(io, "Mikrubi Field: ")
+	print(io, "geo_dim = $(size(field.pixel_locs, 2)), ")
+	print(io, "env_dim = $(field.d), ")
+	print(io, "$(field.n) pixels, ")
+	print(io, "and $(field.m) counties")
+end
+
+logistic(x::T) where {T <: Real} = one(T) ./ (one(T) + exp(-x))
+loglogistic(x::T) where {T <: Real} = -log(one(T) + exp(-x))
+
+function param_decompose(p::Vector, d::Int)
+	A = zeros(eltype(p), d, d)
 	i = j = k = 1
 	while i <= d
 		A[i, j] = p[k]
@@ -51,13 +65,13 @@ function param_decompose(p::Array, d::Int)
 	A, p[k:k+d-1], p[k+d]
 end
 
-function loglike(field::MikrubiField, params::Array)
+function loglike(field::MikrubiField, params::Vector)
 	A, b, c = param_decompose(params, field.d)
 	pv = field.pixel_vars
 	loglogistic.(sum((pv * A) .^ 2, dims=2)[:] .+ pv * b .+ c)
 end
 
-function energy(field::MikrubiField, occupieds, params::Array)
+function energy(field::MikrubiField, occupieds, params::Vector)
 	e = loglike(field, params)
 	for o = occupieds
 		start = field.starts[o]
@@ -76,6 +90,7 @@ function fit(field::MikrubiField, occupieds; kwargs...)
 	zeroes = zeros(((field.d+1) * (field.d+2)) >> 1)
 	result = Optim.optimize(fun, zeroes, iterations=3000000; kwargs...)
 	result.iteration_converged && println("Warning: Not converged yet!")
+	println("Maximized log-likeliness: $(-result.minimum)")
 	MikrubiModel(field, result.minimizer)
 end
 
@@ -99,6 +114,14 @@ struct MikrubiModel{T, U <: Real, V <: AbstractFloat}
 		end
 		new{T, U, V}(field, params, pr_cell, pr_county)
 	end
+end
+
+function Base.show(io::IO, model::MikrubiModel)
+	print(io, "Mikrubi Model: ")
+	print(io, "geo_dim = $(size(model.field.pixel_locs, 2)), ")
+	print(io, "env_dim = $(model.field.d), ")
+	print(io, "$(model.field.n) pixels, ")
+	print(io, "and $(model.field.m) counties")
 end
 
 function sample(model::MikrubiModel)

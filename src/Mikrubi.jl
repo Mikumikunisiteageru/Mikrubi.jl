@@ -5,7 +5,6 @@ export MikrubiField, logistic, loglogistic, fit, MikrubiModel, sample
 import Optim
 
 Matrix{T}(a::Vector{T}) where {T <: Real} = repeat(a, 1, 1)
-Array{AbstractFloat}(a::Array) = AbstractFloat.(a)
 
 struct MikrubiField{T, U <: Real, V <: AbstractFloat}
 	pixel_ids::Vector{T}
@@ -44,7 +43,7 @@ end
 function MikrubiField(pixel_ids::Array{T}, pixel_locs::Array{U}, 
 		pixel_vars::Array{V}) where {T, U <: Real, V <: Real}
 	MikrubiField(pixel_ids, pixel_locs, Float64.(pixel_vars))
-end	
+end
 
 function Base.show(io::IO, field::MikrubiField)
 	print(io, "Mikrubi Field: ")
@@ -86,13 +85,14 @@ function energy(field::MikrubiField, occupieds, params::Vector)
 	- sum(e)
 end
 
-function fit(field::MikrubiField, occupieds; kwargs...)
+function fit(field::MikrubiField, occupieds; opt_ctnr=[], kwargs...)
 	occupieds_ = intersect(occupieds, field.ids)
 	isempty(occupieds_) && error("No meaningful occupied units!")
 	fun(params) = energy(field, occupieds_, params)
 	zeroes = zeros(((field.d+1) * (field.d+2)) >> 1)
 	result = Optim.optimize(fun, zeroes, iterations=3000000; kwargs...)
 	result.iteration_converged && println("Warning: Not converged yet!")
+	push!(opt_ctnr, result)
 	println("Maximized log-likeliness: $(-result.minimum)")
 	MikrubiModel(field, result.minimizer)
 end
@@ -100,12 +100,12 @@ end
 struct MikrubiModel{T, U <: Real, V <: AbstractFloat}
 	field::MikrubiField{T, U, V}
 	params::Vector{V}
-	pr_cell::Vector{V}
+	pr_pixel::Vector{V}
 	pr_county::Dict{T, V}
 	function MikrubiModel(field::MikrubiField{T, U, V}, 
 			params::Vector{V}) where {T, U <: Real, V <: AbstractFloat}
 		ll = loglike(field, params)
-		pr_cell = 1. .- exp.(ll)
+		pr_pixel = 1. .- exp.(ll)
 		t = Dict{T, V}()
 		for i = 1:field.n
 			id = field.pixel_ids[i]
@@ -115,7 +115,7 @@ struct MikrubiModel{T, U <: Real, V <: AbstractFloat}
 		for id = field.ids
 			pr_county[id] = 1. - exp(t[id])
 		end
-		new{T, U, V}(field, params, pr_cell, pr_county)
+		new{T, U, V}(field, params, pr_pixel, pr_county)
 	end
 end
 

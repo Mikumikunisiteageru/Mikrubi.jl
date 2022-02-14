@@ -24,7 +24,6 @@ These arguments should have the same number of rows.
 The `MikrubiField` method constructs a field containing a number of pixels or 
 points, the number equal to the number of rows of each arguments.
 """
-
 struct MikrubiField{T, U <: Real, V <: AbstractFloat}
 	pixel_ids::Vector{T}
 	pixel_locs::Array{U}
@@ -116,6 +115,22 @@ function fit(field::MikrubiField, occupieds; opt_ctnr=[], kwargs...)
 	MikrubiModel(field, result.minimizer)
 end
 
+"""
+# MikrubiModel
+
+## Constructor
+```julia
+MikrubiModel(field, params)
+```
+
+## Arguments
+- `field::MikrubiField`: a Mikrubi field
+- `params::Vector{<:AbstractFloat}`: parameters in a compact form
+
+## Description
+The `MikrubiModel` method constructs a Mikrubi model, from the field and the 
+parameters. Mikrubi models can also be obtained from the function `fit`.
+"""
 struct MikrubiModel{T, U <: Real, V <: AbstractFloat}
 	field::MikrubiField{T, U, V}
 	params::Vector{V}

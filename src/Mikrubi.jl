@@ -6,6 +6,25 @@ import Optim
 
 Matrix{T}(a::Vector{T}) where {T <: Real} = repeat(a, 1, 1)
 
+"""
+# MikrubiField
+
+## Constructor
+```julia
+MikrubiField(pixel_ids, pixel_locs, pixel_vars)
+```
+
+## Arguments
+- `pixel_ids::Array`: a vector containing the county identifiers
+- `pixel_locs::Array{<:Real}`: an array of geographic coordinates
+- `pixel_vars::Array{<:AbstractFloat}`: an array of environmental coordinates
+These arguments should have the same number of rows.
+
+## Description
+The `MikrubiField` method constructs a field containing a number of pixels or 
+points, the number equal to the number of rows of each arguments.
+"""
+
 struct MikrubiField{T, U <: Real, V <: AbstractFloat}
 	pixel_ids::Vector{T}
 	pixel_locs::Array{U}

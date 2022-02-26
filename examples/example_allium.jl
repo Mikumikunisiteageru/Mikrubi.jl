@@ -10,7 +10,7 @@ allium = [2858, 68, 22, 17, 72, 2859, 16, 2770, 33, 233, 89, 73, 18,
           2864, 1010, 82, 216, 36, 786, 162, 568, 364, 386, 454, 291, 48, 
           2744, 2740, 2507, 98, 134, 488] # list of occupied counties
 model = fit(china, allium) # needs about 15 s, log-likeliness = -126.6560
-prop = model.pr_cell
+prop = model.pr_pixel
 
 topo = fill(NaN, 1080, 540)
 c2i(x) = floor(Int, x * 6) # coords to index

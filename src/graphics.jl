@@ -1,11 +1,66 @@
-module MikrubiGraphics
+module Graphics
 
-using PyPlot
+import ArchGDAL
+# import Mikrubi: geom2mat
+
+# using PyPlot
 using GeoArrays
-using Shapefile
 using StatsBase
 
-export showlayer, showfield, showctpixels, showshptable
+export setplot, showlayer, showfield, showctpixels, showshptable
+
+struct Dummy end
+
+Base.getproperty(::Dummy,::Symbol) = dummy(a...; kw...) = nothing
+
+setplot(x::Module) = global Plot = x
+
+Plot = Dummy()
+xlim(a...; kw...) = Plot.xlim(a...; kw...)
+ylim(a...; kw...) = Plot.ylim(a...; kw...)
+plot(a...; kw...) = Plot.plot(a...; kw...)
+pcolor(a...; kw...) = Plot.pcolor(a...; kw...)
+imshow(a...; kw...) = Plot.imshow(a...; kw...)
+scatter(a...; kw...) = Plot.scatter(a...; kw...)
+
+# copied from Mikrubi.jl
+function geom2mat(polygon::ArchGDAL.IGeometry{ArchGDAL.wkbPolygon})
+	parts = Int[]
+	points = NTuple{3, Float64}[]
+	for i = 0 : ArchGDAL.ngeom(polygon)-1
+		ring = ArchGDAL.getgeom(polygon, i)
+		push!(parts, length(points))
+		for j = 0 : ArchGDAL.ngeom(ring)-1
+			push!(points, ArchGDAL.getpoint(ring, j))
+		end
+	end
+	n = length(points)
+	mat = Matrix{Float64}(undef, 2, n)
+	for i = 1:n
+		mat[:, i] .= points[i][1:2]
+	end
+	return parts, mat
+end
+function geom2mat(multipolygon::ArchGDAL.IGeometry{ArchGDAL.wkbMultiPolygon})
+	parts = Int[]
+	points = NTuple{3, Float64}[]
+	for k = 0 : ArchGDAL.ngeom(multipolygon)-1
+		polygon = ArchGDAL.getgeom(multipolygon, k)
+		for i = 0 : ArchGDAL.ngeom(polygon)-1
+			ring = ArchGDAL.getgeom(polygon, i)
+			push!(parts, length(points))
+			for j = 0 : ArchGDAL.ngeom(ring)-1
+				push!(points, ArchGDAL.getpoint(ring, j))
+			end
+		end
+	end
+	n = length(points)
+	mat = Matrix{Float64}(undef, 2, n)
+	for i = 1:n
+		mat[:, i] .= points[i][1:2]
+	end
+	return parts, mat
+end
 
 """
 	showlayer(layer; f=identity, kwargs...)
@@ -109,16 +164,17 @@ end
 
 function polygonline(geom)
 	line = Tuple{Float64, Float64}[]
-	parts = geom.parts .+ 1
-	for i = 1:length(geom.points)
-		pt = geom.points[i]
+	parts, mat = geom2mat(geom)
+	parts .+= 1
+	for i = 1:size(mat,2)
+		pt = (mat[:, i]...,)
 		i in parts && push!(line, (NaN, NaN))
-		push!(line, (pt.x, pt.y))
+		push!(line, pt)
 	end
 	line
 end
 function shapelines(shptable)
-	geoms = Shapefile.shapes(shptable)
+	geoms = ArchGDAL.getgeom.(shptable)
 	lines = Tuple{Float64, Float64}[]
 	for geom = geoms
 		append!(lines, polygonline(geom))

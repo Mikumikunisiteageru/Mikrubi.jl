@@ -1,16 +1,18 @@
 # Mikrubi.jl
 
-*A model for species distributions on county-level records.*
+*A model for species distributions on region-based records.*
 
 Mikrubi is a species distribution model (SDM) based on rough occurrences and/or precise coordinates. 
 
-If you want to model the geographic distribution or the ecological niche of a species on its county-level records (or in any other administrative unit) and maybe also with some coordinates, Mikrubi is be a good option.
+If you want to model the geographic distribution or the ecological niche of a species on its region-based records (e.g. in administrative units) and maybe also with some coordinates, Mikrubi.jl is a good option.
 
 ## Workflow
 
+In this documentation, the word "county" is regarded temporarily as a term, referring to the regions that are occupied or unoccupied. 
+
 Suppose we want to model the fine-scale distribution of a certain species while knowing its occupied counties of a certain country. To start Mikrubi, we need to prepare three requisites:
 
-- A shapefile located at the path `shpfile`, describing shapes of all counties as polygons. For many countries or regions, such an administrative partition shapefile can be found from [Database of Global Administrative Areas](https://gadm.org/). Especially for China, the accepted county-level shapefile is available from [National Platform of Common Geospatial Information Services](https://www.tianditu.gov.cn/) and [Gaode Map Open Platform](https://lbs.amap.com/).
+- A map located at the path `shpfile`, describing shapes of all counties as polygons. For many countries or regions, such an administrative partition map can be found from [Database of Global Administrative Areas](https://gadm.org/, can be accessed via GADM.jl, see examples/prinsepia/jui.jl). Especially for China, the accepted county-level shapefile is available from [National Platform of Common Geospatial Information Services](https://www.tianditu.gov.cn/) and [Gaode Map Open Platform](https://lbs.amap.com/).
 
 - A directory `layerdir`, containing typically multiple raster layers usually from [WorldClim](https://worldclim.org/data/index.html), of the same size, shape, and resolution.  
 
@@ -35,10 +37,15 @@ Now we take *Allium wallichii* in China as an example (for the same case, codes 
 julia> using Mikrubi
 
 julia> shptable = readshape(shpfile)
-Shapefile.Table{Union{Missing, Shapefile.Polygon}} with 2894 rows and the following 15 columns:
-
-geometry, id, provinceid, cityid, cocode, coshname, prcode, cishname, cicode, couname, prshname, cifullname, prfullname, countyid, area
-
+Layer: counties
+  Geometry 0 (): [wkbPolygon], POLYGON ((99.994226 ...), ...
+     Field 0 (id): [OFTInteger64], 2367, 2368, 2369, 2370, 2371, 2372, 2373, ...
+     Field 1 (provinceid): [OFTInteger64], 53, 53, 53, 53, 53, 53, 53, 53, ...
+     Field 2 (cityid): [OFTInteger64], 5305, 5305, 5305, 5305, 5305, 5323, ...
+     Field 3 (cocode): [OFTString], 530524, 530523, 530502, 530521, 530522, ...
+     Field 4 (coshname): [OFTString], 昌宁县, 龙陵县, 隆阳区, 施甸县, 腾冲县, 楚雄市, 大姚县, ...
+...
+ Number of Fields: 14
 
 julia> layers = readlayers(layerdir)
 [ Info: Totally 19 raster files recognized in the directory, in the form of wc2.0_bio_10m_***.tif, where asterisks mean 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19.

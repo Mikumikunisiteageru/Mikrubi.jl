@@ -6,14 +6,20 @@ Depth = 3
 ```
 
 ```@meta
-CurrentModule = MikrubiGraphics
+CurrentModule = Graphics
 ```
 
 ## Module introduction
 
-`MikrubiGraphics` is an accessory module of `Mikrubi`. It illustrates many types of objects involved in `Mikrubi` including shapefile, raster layer, `Mikrubi.CtPixels`, and `MikrubiField` as images, which may be useful while debugging. 
+`Graphics` is an accessory module of `Mikrubi`. It illustrates many types of objects involved in `Mikrubi` including shapefile, raster layer, `Mikrubi.CtPixels`, and `MikrubiField` as images, which may be useful while debugging. 
 
-Since the plotting engine is substantially the Python package `matplotlib` (wrapped into Julia by `PyPlot.jl`), `MikrubiGraphics` is not imported into the main package. When necessary, users may include this accessory module either by `include("path/to/Mikrubi/src/MikrubiGraphics.jl")`, or by command `using MikrubiGraphics` as normal packages after `push!(LOAD_PATH, "path/to/Mikrubi/src/")`, if Python as well as the Python package `matplotlib` has been installed.
+Since the plotting engine is substantially the Python package `matplotlib` (wrapped into Julia by `PyPlot.jl`), `Graphics` is not imported into the main package. When necessary, users may include include this accessory module by the following lines, if Python as well as the Python package `matplotlib` has been installed.
+```julia
+using Mikrubi
+using .Graphics
+using PyPlot
+setplot(PyPlot)
+```
 
 ```@docs
 showlayer
@@ -28,8 +34,9 @@ In the beginning, here we get the packages, path strings, and decoration functio
 
 ```julia
 using Mikrubi
-using MikrubiGraphics
+using .Graphics
 using PyPlot
+setplot(PyPlot)
 
 shpfile = "path/to/china/counties.shp";
 layerdir = "path/to/worldclim/layers";
@@ -41,7 +48,7 @@ worldwide() = (xlim(-180, 180); ylim(-90, 90))
 
 ### Illustrating the shapefile and the raw layers
 
-Now the workflow is disassembled into steps, and we use functions implemented in `MikrubiGraphics` to check the outputs.
+Now the workflow is disassembled into steps, and we use functions implemented in `Graphics` to check the outputs.
 
 First of all, a shapefile is read into Julia. We can see clearly that the boundaries of counties of China plotted in black line.
 

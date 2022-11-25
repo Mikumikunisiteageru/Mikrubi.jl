@@ -6,7 +6,7 @@ Depth = 3
 ```
 
 ```@meta
-CurrentModule = Mikrubi
+Module = Mikrubi
 ```
 
 ## Reading and writing
@@ -191,6 +191,14 @@ For simulation analysis, sometimes it is required to sample a set of counties fr
 samplecounties
 ```
 
+### Detecting overfitting
+
+Overfitting can be detected with the Lipschitz constant, the (logarithmic) maximum gradient (in norm) of the probability of presence in environmental space.
+
+```@docs
+lipschitz
+```
+
 ### Mathematic functions
 
 Two mathematic functions used in the core are exported for convenience.
@@ -210,4 +218,5 @@ Mikrubi.energy
 Mikrubi.probpixels
 Mikrubi.findnearest
 Mikrubi.findnearests
+Mikrubi.loglipschitz
 ```

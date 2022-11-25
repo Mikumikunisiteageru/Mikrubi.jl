@@ -1,7 +1,9 @@
-push!(LOAD_PATH, "../src/")
+# docs/make.jl
 
 using Mikrubi
-using MikrubiGraphics
+using .Graphics
+
+cd(joinpath(pkgdir(Mikrubi), "docs"))
 
 using Documenter
 
@@ -12,5 +14,5 @@ makedocs(
 		"Manual" => "manual.md",
 		"Graphics" => "graphics.md",
 		],
-	# modules = [Mikrubi, MikrubiGraphics],
+	# modules = [Mikrubi, Mikrubi.Graphics],
 )

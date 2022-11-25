@@ -1,21 +1,26 @@
 module Mikrubi
 
-using GeoArrays
-using Shapefile
+include("graphics.jl")
 
+export Graphics
+
+using GeoArrays
+
+import ArchGDAL
 import Printf: @sprintf
 import DelimitedFiles: readdlm, writedlm
 import Statistics: mean, std, cor
-import MultivariateStats: fit, projection, PCA
-import Optim: optimize
+import MultivariateStats # fit, projection, PCA
+import Optim: optimize, maximize, maximum, NelderMead, Newton, Options
 
 export logistic, loglogistic
-export readshape, lookup, rasterize
+export readshape, goodcolumns, lookup, rasterize
 export readlayers, writelayer, writelayers, makefield
 export MikrubiField, readfield, writefield
 export MikrubiModel, readmodel, writemodel
 export readlist, writelist, fit
 export predict, predictcounty, probcounties, samplecounties
+export lipschitz
 
 const MAXPCADIM = 4
 
@@ -53,7 +58,7 @@ the Python package `textwrap`.
 textwrap(str::AbstractString) = replace(str, r" *\n[ \t]*" => " ")
 
 """
-	allsame(a::Vector)
+	allsame(a::AbstractVector)
 
 Returns `true` if all elements from `a` are identical, or otherwise `false`.
 
@@ -78,17 +83,17 @@ Stacktrace:
  [3] top-level scope at REPL[20]:1
 ```
 """
-allsame(a::Vector) = all(a[1] .== a[2:end])
+allsame(a::AbstractVector) = all(a[1] .== a[2:end])
 
 """
-	colmatrix(vector::Vector)
-	colmatrix(matrix::Matrix)
+	colmatrix(vector::AbstractVector)
+	colmatrix(matrix::AbstractMatrix)
 
 Returns a one-column matrix if the argument is a vector, or the matrix itself
 if the argument is already a matrix.
 """
-colmatrix(vector::Vector) = repeat(vector, 1, 1)
-colmatrix(matrix::Matrix) = matrix
+colmatrix(vector::AbstractVector) = repeat(vector, 1, 1)
+colmatrix(matrix::AbstractMatrix) = matrix
 
 # MATHEMATIC TOOLS
 
@@ -100,7 +105,7 @@ Computes `logistic(x) := 1 / (1 + e^x)`.
 logistic(x) = one(x) ./ (one(x) + exp(-x))
 
 """
-	logistic(x)
+	loglogistic(x)
 
 Computes `log(logistic(x)) = -log(1 + e^x)`.
 """
@@ -123,7 +128,7 @@ interpolate(u1::Float64, u2::Float64, v1::Float64, v2::Float64) =
 interpolate(u1, u2, v1, v2) = interpolate(Float64.((u1, u2, v1, v2))...)
 
 """
-	scanline(coords::Matrix{Float64}, parts::Vector{<:Integer}, xb, yb)
+	scanline(coords::AbstractMatrix{Float64}, parts::Vector{<:Integer}, xb, yb)
 
 Performs scan line algorithm on polygon(s) defined by `coords` and `parts`, in
 the rectangular field ranging from `0` to `xb` on longitude and from `0` to
@@ -133,7 +138,8 @@ and `parts` is a vector of integers denoting starting column index of each
 ring in the polygon(s). When the center of a pixel lies within the polygon(s),
 the center coordinates of the pixel are included in the output.
 """
-function scanline(coords::Matrix{Float64}, parts::Vector{<:Integer}, xb, yb)
+function scanline(coords::AbstractMatrix{Float64}, 
+		parts::AbstractVector{<:Integer}, xb, yb)
 	buckets = Dict{Int, Vector{Float64}}()
 	yc = round.(Int, coords[2, :])
 	@inbounds for k = 1 : size(coords, 2)
@@ -227,13 +233,13 @@ function strokeedge(x1, y1, x2, y2, xb, yb)
 end
 
 """
-	strokepath(coords::Matrix{Float64}, parts, xb, yb)
+	strokepath(coords::AbstractMatrix{Float64}, parts, xb, yb)
 
 Gathers all unit pixels in the rectangle ranging from `0` to `xb` on longitude
 and from `0` and `yb` on latitude that the path(s) defined by `coords` and
 `parts` touch(es).
 """
-function strokepath(coords::Matrix{Float64}, parts, xb, yb)
+function strokepath(coords::AbstractMatrix{Float64}, parts, xb, yb)
 	x = coords[1, :]
 	y = coords[2, :]
 	pixels = Set{Tuple{Int,Int}}()
@@ -254,29 +260,62 @@ function strokepath(coords::Matrix{Float64}, parts, xb, yb)
 end
 
 """
-	geom2mat(geom::Shapefile.Polygon)
+	geom2mat(polygon::ArchGDAL.IGeometry{ArchGDAL.wkbPolygon})
+	geom2mat(multipolygon::ArchGDAL.IGeometry{ArchGDAL.wkbMultiPolygon})
 	
-Converts a `Shapefile.Polygon` to a two-row matrix, with first row representing
+Converts a `ArchGDAL.IGeometry` to a two-row matrix, with first row representing
 the longitudes, and the second for latitudes.
 """
-function geom2mat(geom::Shapefile.Polygon)
-	n = length(geom.points)
-	mat = Array{Float64}(undef, 2, n)
-	@inbounds for i = 1:n
-		pt = geom.points[i]
-		mat[1:2, i] .= pt.x, pt.y
+function geom2mat(polygon::ArchGDAL.IGeometry{ArchGDAL.wkbPolygon})
+	parts = Int[]
+	points = NTuple{3, Float64}[]
+	for i = 0 : ArchGDAL.ngeom(polygon)-1
+		ring = ArchGDAL.getgeom(polygon, i)
+		push!(parts, length(points))
+		for j = 0 : ArchGDAL.ngeom(ring)-1
+			push!(points, ArchGDAL.getpoint(ring, j))
+		end
 	end
-	mat
+	n = length(points)
+	mat = Matrix{Float64}(undef, 2, n)
+	for i = 1:n
+		mat[:, i] .= points[i][1:2]
+	end
+	return parts, mat
+end
+function geom2mat(multipolygon::ArchGDAL.IGeometry{ArchGDAL.wkbMultiPolygon})
+	parts = Int[]
+	points = NTuple{3, Float64}[]
+	for k = 0 : ArchGDAL.ngeom(multipolygon)-1
+		polygon = ArchGDAL.getgeom(multipolygon, k)
+		for i = 0 : ArchGDAL.ngeom(polygon)-1
+			ring = ArchGDAL.getgeom(polygon, i)
+			push!(parts, length(points))
+			for j = 0 : ArchGDAL.ngeom(ring)-1
+				push!(points, ArchGDAL.getpoint(ring, j))
+			end
+		end
+	end
+	n = length(points)
+	mat = Matrix{Float64}(undef, 2, n)
+	for i = 1:n
+		mat[:, i] .= points[i][1:2]
+	end
+	return parts, mat
 end
 
 """
-	rasterize(geom::Shapefile.Polygon, grid::GeoArray)
+	rasterize(geom::ArchGDAL.IGeometry, grid::GeoArray)
 	
 Returns coordinates of pixels of `grid` that `geom` the polygon(s) touch(es).
 """
-function rasterize(geom::Shapefile.Polygon, grid::GeoArray)
-	parts = geom.parts .+ 1
-	coords = grid.f.linear \ (geom2mat(geom) .- grid.f.translation)
+function rasterize(geom::ArchGDAL.IGeometry, grid::GeoArray)
+	@assert ArchGDAL.getgeomtype(geom) in 
+		[ArchGDAL.wkbMultiPolygon, ArchGDAL.wkbPolygon]
+	parts, mat = geom2mat(geom)
+	parts = parts .+ 1
+	coords = grid.f.linear \ (mat .- grid.f.translation)
+	# yb, xb, _ = size(grid)
 	xb, yb, _ = size(grid)
 	pixels = scanline(coords, parts, xb, yb)
 	union!(pixels, strokepath(coords, parts, xb, yb))
@@ -296,13 +335,13 @@ getpixels(ctpixels::CtPixels) = first.(ctpixels)
 getcounties(ctpixels::CtPixels) = last.(ctpixels)
 
 """
-	rasterize(shptable::Shapefile.Table, grid::GeoArray)
+	rasterize(shptable::ArchGDAL.IFeatureLayer, grid::GeoArray)
 	
 Collects coordinates of pixels of `grid` that every polygon(s) from `shptable`
 touch(es).
 """
-function rasterize(shptable::Shapefile.Table, grid::GeoArray)
-	geoms = Shapefile.shapes(shptable)
+function rasterize(shptable::ArchGDAL.IFeatureLayer, grid::GeoArray)
+	geoms = ArchGDAL.getgeom.(shptable)
 	ctpixels = CtPixels()
 	@info textwrap("Rasterizing procedure may be slow. Please wait...")
 	ndiv = 80
@@ -321,37 +360,80 @@ end
 """
 	readshape(path::AbstractString)
 
-Reads a shape (".shp") file located at `path`. Alias for `Shapefile.Table`.
+Reads a shape file (which ends with ".shp", ".geojson", or "gpkg") located at 
+`path`.
 """
-readshape(path::AbstractString) = Shapefile.Table(path)
-
-"""
-	goodproperties(object)
-
-Find all properties of `object` where entries are all unique and either
-integers or strings (types where `isequal` is well-defined).
-"""
-goodproperties(object) = 
-	[p for p = propertynames(object) if 
-		allunique(getproperty(object, p)) && 
-			eltype(getproperty(object, p)) <: Union{Integer, AbstractString}]
-
-"""
-	lookup(shptable::Shapefile.Table, column::Symbol, entry)
-	lookup(shptable::Shapefile.Table, column::Symbol, entries::AbstractArray)
-
-Finds row(s) in the shapefile table whose `column` record(s) equal(s) to
-`entry` or elements of `entries`. When the third argument is an array, results
-are output as an array of the same shape by broadcasting.  
-"""
-function lookup(shptable::Shapefile.Table, column::Symbol, entry)
-	if ! hasproperty(shptable, column)
-		properties = goodproperties(shptable)
-		error(textwrap("No column in the shapefile named `$column`! 
-			Recommended alternatives are $(join(repr.(properties), ", ")). 
-			Please select one from them."))
+function readshape(path::AbstractString, index::Int=-1)
+	ispath(path) || error(textwrap("The `path` given is invalid!"))
+	if isdir(path)
+		@info textwrap("The `path` is a directory. Now finding a random 
+			file with extension `.shp`, `.geojson`, or `.gpkg` (from GADM) in 
+			the directory by default.")
+		files = readdir(path; join=true)
+		isgeofile(f) = last(splitext(f)) in [".shp", ".geojson", ".gpkg"]
+		i = findfirst(isgeofile, files)
+		isnothing(i) && error(textwrap("No such a file in the directory!"))
+		path = files[i]
 	end
-	shpcol = getproperty(shptable, column)
+	dataset = ArchGDAL.read(path)
+	if ArchGDAL.nlayer(dataset) == 1
+		index = 0
+	elseif ArchGDAL.nlayer(dataset) > 1 && index == -1
+		display(dataset)
+		error(textwrap("There are more than one data layers in the dataset! 
+			Please designate the layer `index`."))
+	end
+	shptable = ArchGDAL.getlayer(dataset, index)
+	isempty(shptable) && error(textwrap("The dataset does not contain any 
+		shapes or geometries!"))
+	return shptable
+end
+
+"""
+	goodcolumns(shptable::ArchGDAL.IFeatureLayer)
+
+Find all properties or fields of `shptable` where entries are all unique and 
+either integers or strings (types where `isequal` is well-defined).
+"""
+function goodcolumns(shptable::ArchGDAL.IFeatureLayer)
+	n = ArchGDAL.nfield(shptable)
+	fields = Dict{String, Vector}()
+	feature = first(shptable)
+	for i = 0 : ArchGDAL.nfield(shptable)-1
+		list = ArchGDAL.getfield.(shptable, i)
+		if eltype(list) <: Union{Integer, AbstractString} && allunique(list)
+			name = ArchGDAL.getname(ArchGDAL.getfielddefn(feature, i))
+			fields[name] = list
+		end
+	end
+	fields
+end
+
+@deprecate goodproperties(shptable) goodcolumns(shptable)
+
+"""
+	lookup(shptable::ArchGDAL.IFeatureLayer, 
+		column::Union{AbstractString, Symbol}, entry)
+	lookup(shptable::ArchGDAL.IFeatureLayer, 
+		column::Union{AbstractString, Symbol}, entries::AbstractArray)
+	lookup(shptable::ArchGDAL.IFeatureLayer)
+
+Finds row(s) in the shape table whose `column` record(s) equal(s) to `entry` 
+or elements of `entries`. When the third argument is an array, results are 
+output as an array of the same shape by broadcasting. 
+"""
+function lookup(shptable::ArchGDAL.IFeatureLayer, 
+		column::Union{AbstractString, Symbol}, entry)
+	# if ! hasproperty(shptable, column)
+	feature = first(shptable)
+	i = ArchGDAL.findfieldindex(feature, column)
+	if i == -1 || isnothing(i)
+		columns = keys(goodcolumns(shptable))
+		error(textwrap("No column in the shapefile named `$column`! 
+			Recommended alternatives are $(join(repr.(columns), ", ")). 
+			Please select one from them as `column`."))
+	end
+	shpcol = ArchGDAL.getfield.(shptable, i)
 	index = findall(shpcol .== entry)
 	if length(index) == 1
 		return index[1]
@@ -377,13 +459,15 @@ function lookup(shptable::Shapefile.Table, column::Symbol, entry)
 		again. Nothing is returned here.")
 	return nothing
 end
-lookup(shptable::Shapefile.Table, column::Symbol, entries::AbstractArray) =
-	lookup.([shptable], column, entries)
+lookup(shptable::ArchGDAL.IFeatureLayer, 
+		column::Union{AbstractString, Symbol}, entries::AbstractArray) =
+	lookup.([shptable], [column], entries)
+lookup(shptable::ArchGDAL.IFeatureLayer) = lookup(shptable, "", 0)
 
 # FUNCTIONS FOR HANDLING RASTER LAYERS
 
 """
-	sortfilenames!(filenames::Vector{<:AbstractString})
+	sortfilenames!(filenames::AbstractVector{<:AbstractString})
 
 Identifies the distinctive parts among `filenames`, and sorts `filenames`
 according to the order of those parts. If all of the distinctive parts are
@@ -392,21 +476,21 @@ decimal numerals, they are sorted as integers.
 # Examples
 ```julia
 julia> sortfilenames!(["bio_9.tif", "bio_10.tif", "bio_1.tif"])
-[ Info: Totally 3 raster files recognized in the directory, in the form of bio_*.tif, where asterisk mean 1, 9, 10.
+[ Info: Totally 3 raster files recognized in the directory, in the form of bio_*.tif, where the asterisk means 1, 9, 10.
 3-element Array{String,1}:
  "bio_1.tif"
  "bio_9.tif"
  "bio_10.tif"
 
 julia> sortfilenames!(["bio_09.tif", "bio_10.tif", "bio_01.tif"])
-[ Info: Totally 3 raster files recognized in the directory, in the form of bio_*.tif, where asterisk mean 01, 09, 10.
+[ Info: Totally 3 raster files recognized in the directory, in the form of bio_*.tif, where the asterisk means 01, 09, 10.
 3-element Array{String,1}:
  "bio_01.tif"
  "bio_09.tif"
  "bio_10.tif"
 ```
 """
-function sortfilenames!(filenames::Vector{<:AbstractString})
+function sortfilenames!(filenames::AbstractVector{<:AbstractString})
 	if length(filenames) == 0
 		error(textwrap("No available raster file(s) in the directory!"))
 	elseif length(filenames) == 1
@@ -430,7 +514,7 @@ function sortfilenames!(filenames::Vector{<:AbstractString})
 	@info textwrap("Totally $(length(filenames)) raster files recognized in
 		the directory, in the form of 
 		$(splitpath(filenames[1][1:s-1])[end])*$(filenames[1][end-t+1:end]),
-		where asterisk mean $(join(fileids[perm], ", ")).")
+		where the asterisk means $(join(fileids[perm], ", ")).")
 	filenames .= filenames[perm]
 end
 
@@ -494,13 +578,15 @@ writelayer(path::AbstractString, layer::GeoArray) =
 	GeoArrays.write!(path, layer)
 
 """
-	writelayers(paths::Vector{<:AbstractString}, layers::Vector)
-	writelayers(pathformula::AbstractString, layers::Vector)
+	writelayers(paths::AbstractVector{<:AbstractString}, 
+		layers::AbstractVector)
+	writelayers(pathformula::AbstractString, layers::AbstractVector)
 
 Writes `layers` to `paths` respondingly, or a series of paths generated by the
 `pathformula` where an asterisk is used for wildcard and replaced by numbers.
 """
-function writelayers(paths::Vector{<:AbstractString}, layers::Vector)
+function writelayers(paths::AbstractVector{<:AbstractString}, 
+		layers::AbstractVector)
 	length(paths) != length(layers) &&
 		error(textwrap("Arguments `paths` and `layers` must have the same 
 			length as vectors!"))
@@ -508,7 +594,7 @@ function writelayers(paths::Vector{<:AbstractString}, layers::Vector)
 		writelayer(path, layer)
 	end
 end
-function writelayers(pathformula::AbstractString, layers::Vector)
+function writelayers(pathformula::AbstractString, layers::AbstractVector)
 	occursin("*", pathformula) ||
 		error(textwrap("Argument `pathformula` must contain an asterisk 
 			(\"`*`\") as wildcard!"))
@@ -519,12 +605,12 @@ function writelayers(pathformula::AbstractString, layers::Vector)
 end
 
 """
-	masklayers!(layers::Vector{<:GeoArray}, ctpixels::CtPixels)
+	masklayers!(layers::AbstractVector{<:GeoArray}, ctpixels::CtPixels)
 
 Masks the `layers` in a way that only pixels present in `ctpixels` are kepts,
 while all other unmentioned pixels are set to `missing`.
 """
-function masklayers!(layers::Vector{<:GeoArray}, ctpixels::CtPixels)
+function masklayers!(layers::AbstractVector{<:GeoArray}, ctpixels::CtPixels)
 	xb, yb, nband = size(layers[1])
 	mask = trues(xb, yb, nband)
 	for (x, y) = getpixels(ctpixels)
@@ -537,14 +623,14 @@ function masklayers!(layers::Vector{<:GeoArray}, ctpixels::CtPixels)
 end
 
 """
-	extractlayers(layers::Vector{<:GeoArray})
+	extractlayers(layers::AbstractVector{<:GeoArray})
 
 Extracts the non-`missing` pixels from the `layers`, and combines them into a
 matrix, whose rows representing pixels and columns representing variables.
 
 `extractlayers` is the inverse function of `makelayers`.
 """
-function extractlayers(layers::Vector{<:GeoArray})
+function extractlayers(layers::AbstractVector{<:GeoArray})
 	nband = last.(size.(layers))
 	all(nband .== 1) || length(nband) == 1 ||
 		@error textwrap("Multiple raster objects containing multiple bands! 
@@ -581,14 +667,15 @@ function emptylayer(grid::GeoArray)
 end
 
 """
-	makelayers(matrix::Matrix, idx::Vector, grid::GeoArray)
+	makelayers(matrix::AbstractMatrix, idx::AbstractVector, grid::GeoArray)
 
 Returns a vector of layers according to the grid from `grid` and content values
 from columns of `matrix`. See also `makelayer`.
 
 `makelayers` is the inverse function of `extractlayers`.
 """
-function makelayers(matrix::Matrix, idx::Vector, grid::GeoArray)
+function makelayers(matrix::AbstractMatrix, 
+		idx::AbstractVector, grid::GeoArray)
 	npixel, mvar = size(matrix)
 	npixel == length(idx) ||
 		error(textwrap("The number of columns in `matrix` has to be identical
@@ -601,12 +688,12 @@ function makelayers(matrix::Matrix, idx::Vector, grid::GeoArray)
 end
 
 """
-	makelayer(vector::Vector, idx::Vector, grid::GeoArray)
+	makelayer(vector::AbstractVector, idx::AbstractVector, grid::GeoArray)
 
 Returns a layer according to the grid from `grid` and content values from 
 `vector`. See also `makelayers`.
 """
-makelayer(vector::Vector, idx::Vector, grid::GeoArray) =
+makelayer(vector::AbstractVector, idx::AbstractVector, grid::GeoArray) =
 	makelayers(colmatrix(vector), idx, grid)[1]
 
 """
@@ -703,25 +790,27 @@ function princompvars(submat::Matrix; nprincomp=3)
 			deviation (in other words, is (nearly) constant), which directly
 			leads to ill condition of succeeding calculations."))
 	submat01 = (submat .- colmean) ./ colstd
-	pca = fit(PCA, submat01', maxoutdim=nprincomp)
+	pca = MultivariateStats.fit(MultivariateStats.PCA, 
+		submat01', maxoutdim=nprincomp)
 	pcadim = size(pca)[2]
 	pcadim < nprincomp &&
 		@warn textwrap("Only $(size(pca)[2]) principal component(s) (less than
 			`nprincomp` = $nprincomp) is/are used to expressed the selected
 			layers in the principal component analysis.")
-	proj = projection(pca)
+	proj = MultivariateStats.projection(pca)
 	projwstd = proj ./ colstd[:]
 	submat01 * proj, (colmean, projwstd)
 end
 
 """
-	makefield(layers::Vector{<:GeoArray}, shptable::Shapefile.Table; 
+	makefield(layers::AbstractVector{<:GeoArray}, 
+		shptable::ArchGDAL.IFeatureLayer; rabsthres=0.8, nprincomp=3)
+	makefield(layers::AbstractVector{<:GeoArray}, 
+		shptable::ArchGDAL.IFeatureLayer, players::Vector{<:GeoArray}; 
 		rabsthres=0.8, nprincomp=3)
-	makefield(layers::Vector{<:GeoArray}, shptable::Shapefile.Table,
-		players::Vector{<:GeoArray}; rabsthres=0.8, nprincomp=3)
-	makefield(layers::Vector{<:GeoArray}, ctpixels::CtPixels; 
+	makefield(layers::AbstractVector{<:GeoArray}, ctpixels::CtPixels; 
 		rabsthres=0.8, nprincomp=3)
-	makefield(layers::Vector{<:GeoArray}, ctpixels::CtPixels,
+	makefield(layers::AbstractVector{<:GeoArray}, ctpixels::CtPixels,
 		players::Vector{<:GeoArray}; rabsthres=0.8, nprincomp=3)
 
 Generates a Mikrubi field as well as processed variable layers from `layers` 
@@ -748,10 +837,10 @@ Users must assure that `players` has the same length as `layers`, and
 their elements are corresponding in order. This would be useful when the
 prediction is in another geographic range or at another time.
 """
-makefield(layers::Vector{<:GeoArray}, ctpixels::CtPixels; 
+makefield(layers::AbstractVector{<:GeoArray}, ctpixels::CtPixels; 
 	rabsthres=0.8, nprincomp=3) = 
 		_makefield(layers, ctpixels, rabsthres, nprincomp)[1:2]
-function makefield(layers::Vector{<:GeoArray}, ctpixels::CtPixels,
+function makefield(layers::AbstractVector{<:GeoArray}, ctpixels::CtPixels,
 		players::Vector{<:GeoArray}; rabsthres=0.8, nprincomp=3)
 	length(layers) == length(players) ||
 		error(textwrap("Vectors `players` must have the same length as 
@@ -770,17 +859,17 @@ function _makefield(layers, ctpixels, rabsthres, nprincomp)
 	matrix, idx = extractlayers(layers)
 	subindex = selectvars(matrix)
 	submat = matrix[:, subindex]
-	emat, (colmean, projwstd) = princompvars(submat)
+	emat, (colmean, projwstd) = princompvars(submat, nprincomp=nprincomp)
 	field = MikrubiField(ctpixels, idx, emat, layers[1])
 	elayers = makelayers(emat, idx, layers[1])
 	field, elayers, subindex, colmean, projwstd
 end
-makefield(layers::Vector{<:GeoArray}, shptable::Shapefile.Table; 
+makefield(layers::AbstractVector{<:GeoArray}, shptable::ArchGDAL.IFeatureLayer;
 	rabsthres=0.8, nprincomp=3) =
 		makefield(layers, rasterize(shptable, layers[1]),
 			rabsthres=rabsthres, nprincomp=nprincomp)
-makefield(layers::Vector{<:GeoArray}, shptable::Shapefile.Table,
-	players::Vector{<:GeoArray}; rabsthres=0.8, nprincomp=3) =
+makefield(layers::AbstractVector{<:GeoArray}, shptable::ArchGDAL.IFeatureLayer,
+	players::AbstractVector{<:GeoArray}; rabsthres=0.8, nprincomp=3) =
 		makefield(layers, rasterize(shptable, layers[1]),
 			players, rabsthres=rabsthres, nprincomp=nprincomp)
 
@@ -824,8 +913,8 @@ struct MikrubiField{T, U <: Real, V <: AbstractFloat}
 	starts::Dict{T, Int}
 	stops::Dict{T, Int}
 	dvar::Int
-	function MikrubiField(ctids::Vector{T}, locs::VecOrMat{U}, 
-			vars::Matrix{V}) where {T, U <: Real, V <: AbstractFloat}
+	function MikrubiField(ctids::AbstractVector{T}, locs::AbstractVecOrMat{U}, 
+			vars::AbstractMatrix{V}) where {T, U <: Real, V <: AbstractFloat}
 		ctids, locs, vars = copy(ctids), copy(locs), copy(vars)
 		npixel = length(ctids)
 		npixel == size(locs, 1) == size(vars, 1) ||
@@ -858,8 +947,8 @@ MikrubiField(ctids, locs, vars) =
 Constructs a `MikrubiField` from `ctpixels`, `idx`, `projmat`, and `grid`. See also 
 `makefield`.
 """
-function MikrubiField(ctpixels::CtPixels, idx::Vector, projmat::Matrix,
-		grid::GeoArray)
+function MikrubiField(ctpixels::CtPixels, idx::AbstractVector, 
+		projmat::AbstractMatrix, grid::GeoArray)
 	ctids = getcounties(ctpixels)
 	npixel = length(ctids)
 	mvar = size(projmat, 2)
@@ -970,11 +1059,11 @@ function readmodel(path::AbstractString)
 end
 
 """
-	writemodel(path::AbstractString, list::Vector)
+	writemodel(path::AbstractString, list::AbstractVector)
 
 Writes any list or vector to file.
 """
-writelist(path::AbstractString, list::Vector) = writedlm(path, list)
+writelist(path::AbstractString, list::AbstractVector) = writedlm(path, list)
 
 """
 	readlist(path::AbstractString)
@@ -984,11 +1073,11 @@ Reads any list of vector from file.
 readlist(path::AbstractString) = [readdlm(path, Any, header=false)...]
 
 """
-	decomparams(p::Vector, d::Int)
+	decomparams(p::AbstractVector, d::Int)
 	decomparams(model::MikrubiModel)
 
-Returns parameter decomposition `A`, `b`, `c`, where 
-- `A` is an upper triangular matrix of size `(d, d)`,
+Returns parameter decomposition `At`, `b`, `c`, where 
+- `At` is a lower triangular matrix of size `(d, d)`,
 - `b` is a column vector of size `d`, and
 - `c` is a scalar.
 
@@ -1000,28 +1089,28 @@ julia> decomparams(collect(1:10), 3)
 ([1 0 0; 2 3 0; 4 5 6], [7, 8, 9], 10)
 ```
 """
-function decomparams(p::Vector, d::Int)
-	A = zeros(eltype(p), d, d)
+function decomparams(p::AbstractVector, d::Int)
+	At = zeros(eltype(p), d, d)
 	i = j = k = 1
 	while i <= d
-		A[i, j] = p[k]
+		At[i, j] = p[k]
 		i == j ? i += j = 1 : j += 1
 		k += 1
 	end
-	A, p[k:k+d-1], p[k+d]
+	At, p[k:k+d-1], p[k+d]
 end
 decomparams(model::MikrubiModel) = decomparams(model.params, model.dvar)
 
 """
-	loglike(field::MikrubiField, params::Vector)
+	loglike(field::MikrubiField, params::AbstractVector)
 
 Computes the log-likelihood of being absent in each pixel given `field` and
 `params`.
 """
-function loglike(field::MikrubiField, params::Vector)
-	A, b, c = decomparams(params, field.dvar)
+function loglike(field::MikrubiField, params::AbstractVector)
+	At, b, c = decomparams(params, field.dvar)
 	pv = field.vars
-	loglogistic.(sum((pv * A) .^ 2, dims=2)[:] .+ pv * b .+ c)
+	loglogistic.(sum((pv * At) .^ 2, dims=2)[:] .+ pv * b .+ c)
 end
 
 """
@@ -1041,27 +1130,27 @@ function findnearest(loc::AbstractVecOrMat{<:Real}, field::MikrubiField)
 end
 
 """
-	findnearests(loc::Vector{<:AbstractVecOrMat}, field::MikrubiField)
-	findnearests(loc::Matrix{<:Real}, field::MikrubiField)
+	findnearests(loc::AbstractVector{<:AbstractVecOrMat}, field::MikrubiField)
+	findnearests(loc::AbstractMatrix{<:Real}, field::MikrubiField)
 
 Returns the row numbers in `field.locs` which are the nearest to each of the 
 given coordinates. Duplicate results are reduced to one.
 """
-findnearests(loc::Vector{<:AbstractVecOrMat}, field::MikrubiField) =
+findnearests(loc::AbstractVector{<:AbstractVecOrMat}, field::MikrubiField) =
 	unique(findnearest.(loc, [field]))
-findnearests(loc::Matrix, field::MikrubiField) =
+findnearests(loc::AbstractMatrix, field::MikrubiField) =
 	unique(findnearest.(eachrow(float.(loc)), [field]))
 
 """
-	energy(field::MikrubiField, counties, params::Vector)
-	energy(vars::AbstractMatrix, params::Vector)
+	energy(field::MikrubiField, counties, params::AbstractVector)
+	energy(vars::AbstractMatrix, params::AbstractVector)
 
 Computes the opposite log-likelihood that the occupied counties or occupied 
 coordinates are sampled.
 The result is taken opposite sign for optimization, and therefore the function
 is called `energy`.
 """
-function energy(field::MikrubiField, counties, params::Vector)
+function energy(field::MikrubiField, counties, params::AbstractVector)
 	e = loglike(field, params)
 	for o = counties
 		start = field.starts[o]
@@ -1072,9 +1161,9 @@ function energy(field::MikrubiField, counties, params::Vector)
 	end
 	- sum(e)
 end
-function energy(vars::AbstractMatrix, params::Vector)
-	A, b, c = decomparams(params, size(vars, 2))
-	prallp = 1 .- logistic.(sum((vars * A) .^ 2, dims=2)[:] .+ vars * b .+ c)
+function energy(vars::AbstractMatrix, params::AbstractVector)
+	At, b, c = decomparams(params, size(vars, 2))
+	prallp = 1 .- logistic.(sum((vars * At) .^ 2, dims=2)[:] .+ vars * b .+ c)
 	- sum(log.(prallp))
 end
 
@@ -1088,41 +1177,46 @@ field. The optimization result is stored in the container `optresult` for
 debugging.
 """
 function fit(field::MikrubiField, counties, coords=zeros(0, 0); 
-		optresult=[], iterations=3_000_000, kwargs...)
+		optresult=[], iterations=39000, kwargs...)
 	valcounties = intersect(counties, field.ids)
 	indcoords = findnearests(coords, field)
 	isempty(valcounties) && isempty(indcoords) &&
 		error(textwrap("No meaningful occupied counties or coordinates!"))
 	cdvars = field.vars[indcoords, :]
 	fun(params) = energy(field, valcounties, params) + energy(cdvars, params)
-	zeroes = zeros(eltype(field.vars), dvar2dparam(field.dvar))
-	result = optimize(fun, zeroes, iterations=iterations; kwargs...)
+	# zeroes = zeros(eltype(field.vars), dvar2dparam(field.dvar))
+	# TODO: fix the bug in Optim.jl involving NaN32
+	zeroes = zeros(Float64, dvar2dparam(field.dvar))
+	@info textwrap("Now minimizing the opposite likelihood function...")
+	result = optimize(fun, zeroes, NelderMead(), Options(
+		iterations=iterations, show_trace=true, show_every=500; kwargs...))
 	result.iteration_converged && 
 		@warn textwrap("The optimizing routine has reached the maximum 
 			iteration count (`iterations = $iterations`), and thus the 
 			maximizer may be unreliable. Please try to enlarge the parameter.")
 	push!(optresult, result)
 	@info textwrap("Maximized log-likeliness: $(-result.minimum)")
-	MikrubiModel(field.dvar, result.minimizer)
+	# MikrubiModel(field.dvar, result.minimizer)
+	MikrubiModel(field.dvar, eltype(field.vars).(result.minimizer))
 end
 
 """
-	predict(matrix::Matrix, model::MikrubiModel)
-	predict(layers::Vector{<:GeoArray}, model::MikrubiModel)
+	predict(matrix::AbstractMatrix, model::MikrubiModel)
+	predict(layers::AbstractVector{<:GeoArray}, model::MikrubiModel)
 	predict(field::MikrubiField, model::MikrubiModel)
 
 Predicts the probability of presence according to processed climatic factors
 (`matrix` / `layers`) or on the Mikrubi field.
 """
-function predict(matrix::Matrix, model::MikrubiModel)
+function predict(matrix::AbstractMatrix, model::MikrubiModel)
 	size(matrix, 2) == model.dvar ||
 		error(textwrap("The number of columns of the matrix
 			($(size(matrix, 2))) is different from the dimensionality of the
 			model ($(model.dvar))!"))
-	A, b, c = decomparams(model)
-	1 .- logistic.(sum((matrix * A) .^ 2, dims=2)[:] .+ matrix * b .+ c)
+	At, b, c = decomparams(model)
+	1 .- logistic.(sum((matrix * At) .^ 2, dims=2)[:] .+ matrix * b .+ c)
 end
-function predict(layers::Vector{<:GeoArray}, model::MikrubiModel)
+function predict(layers::AbstractVector{<:GeoArray}, model::MikrubiModel)
 	matrix, idx = extractlayers(layers)
 	makelayer(predict(matrix, model), idx, layers[1])
 end
@@ -1182,5 +1276,40 @@ function samplecounties(field::MikrubiField, model::MikrubiModel)
 	@inline bernoulli(p) = rand() <= p
 	sort!([k for k = keys(prcounties) if bernoulli(prcounties[k])])
 end
+
+"""
+	loglipschitz(model::MikrubiModel, field::MikrubiField; wholespace=false)
+
+Calculates the (logarithmic) maximum gradient (in norm) of the probability of 
+presence over the `field`. When `wholespace=false` (default), the maximum is 
+taken among the points contained in `field`; otherwise it is taken around the 
+whole space.
+"""
+function loglipschitz(model::MikrubiModel, 
+		field::MikrubiField; wholespace=false)
+	At, b, c = decomparams(model)
+	biM = 2 * At * At'
+	q(z) = sum((z*At) .^ 2) + sum(z * b) + c
+	llpll(qz) = loglogistic(qz) + loglogistic(-qz)
+	loglip(z) = llpll(q(z')) + log(sum((biM * z + b).^2))/2
+	vars = field.vars
+	m, id = findmax(loglip.(eachrow(vars)))
+	if wholespace == false
+		return m
+	else
+		return maximum(maximize(loglip, vars[id, :], 
+			model.dvar == 1 ? Newton() : NelderMead()))
+	end
+end
+
+"""
+	lipschitz(model::MikrubiModel, field::MikrubiField; wholespace=false)
+
+Calculates the maximum gradient (in norm) of the probability of presence over 
+the `field`. When `wholespace=false` (default), the maximum is taken among the 
+points contained in `field`; otherwise it is taken around the whole space.
+"""
+lipschitz(model::MikrubiModel, field::MikrubiField; wholespace=false) = 
+	exp(loglipschitz(model, field; wholespace=wholespace))
 
 end # module

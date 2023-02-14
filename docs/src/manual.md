@@ -13,21 +13,28 @@ Module = Mikrubi
 
 ### Reading and searching shapefile
 
-Since Mikrubi always reads instead of writes shapefile, only the reading function is offered.
+Since shape files are always read instead of written in this application, only the reading function [`readshape`](@ref) is provided. 
 
 ```@docs
 readshape
 ```
 
-The function [`lookup`](@ref) is useful when some attribute (e.g. name or code) of a county is known and the row number of the county in a shapefile is wanted (row number acts as identifiers in the list of occupied counties, see the syntax of [`fit`](@ref)). 
+The function [`lookup`](@ref) is useful when some attribute (e.g. name or code) of a county is known and the row number of the county in a shapefile is wanted (row number may act as identifiers in the list of occupied counties, see the syntax of [`fit`](@ref)). 
 
 ```@docs
 lookup
 ``` 
 
+#### Internal functions
+
+```@docs
+Mikrubi.filterext
+Mikrubi.goodcolumns
+```
+
 ### Reading and writing list file
 
-List of occupied counties can be prepared explicitly in REPL as a vector or a set. Meanwhile, it is also possible to read from or write to disk such a list, especially when the list is generated outside Julia.
+List of occupied counties can be prepared explicitly in Julia as a vector or a set. Meanwhile, it is also possible to read from or write to disk such a list, especially when the list is generated outside Julia.
 
 ```@docs
 readlist
@@ -46,19 +53,14 @@ writelayers
 
 #### Internal functions
 
-It worths mention that when reading layers from a directory, files are sorted according to their names in a manner similar to the sorting order in Windows OS. Please pay extra attention when two parallel series of raster layers are involved for [`makefield`](@ref). 
+It is worth mention that when reading layers from a directory, files are sorted according to their names in a manner similar to the sorting order in Windows OS. Please pay extra attention when two parallel raster stacks are fed into [`makefield`](@ref). 
 
 ```@docs
 Mikrubi.sortfilenames!
+Mikrubi.allsame
 ```
 
-All layers read are copied (so that they are no longer read-only and linking to the files on disk) and replaced extreme values by `missing`s. To change this behavior, please refer to the inner function [`Mikrubi.copylayer`](@ref).
-
-```@docs
-Mikrubi.copylayer
-```
-
-### Reading and writing Mikrubi field
+### Reading and writing Mikrubi fields
 
 [`MikrubiField`](@ref) is a specially designed type where the environmental information of pixels and their county identifiers are nested. It may be necessary to save (by [`writefield`](@ref)) and load (by [`readfield`](@ref)) a Mikrubi field especially when it is used on multiple species.
 
@@ -67,7 +69,7 @@ readfield
 writefield
 ```
 
-### Reading and writing Mikrubi model
+### Reading and writing Mikrubi models
 
 [`MikrubiModel`](@ref) is a struct containing transformation parameters. It can be read from and written to disk using respectively [`readmodel`](@ref) and [`writemodel`](@ref). 
 
@@ -78,29 +80,23 @@ writemodel
 
 ## Rasterizing a shapefile
 
-Rasterization of one or multiple polygon(s) in a shapefile is implemented in the function [`rasterize`](@ref). The implementation is based on such a fact, that a pixel is touched by a polygon (simple or self-intersecting) when and only when either some edge of the polygon runs through the pixel or the center of the pixel lies inside the polygon. Pixels satisfying the two conditions are collected respectively by internal functions [`Mikrubi.scanline`](@ref) and [`Mikrubi.strokepath`](@ref).
+Since v1.3.0, Mikrubi no longer provides its own rasterization routine; the implementation from [Rasters](https://rafaqz.github.io/Rasters.jl/stable/) is applied instead. The function [`rasterize`](@ref) in Mikrubi integrates the rasterization of multiple geometries. The returned value is of an internal type [`Mikrubi.CtPixels`](@ref).
 
 ```@docs
 rasterize
-```
-
-When `rasterize` is applied to an entire shape table (containing multiple counties), its returned value is of an internal type [`Mikrubi.CtPixels`](@ref).
-
-```@docs
 Mikrubi.CtPixels
 ```
 
 #### Internal functions
 
-These internal functions are called directly or indirectly inside [`rasterize`](@ref). 
-
 ```@docs
-Mikrubi.interpolate
-Mikrubi.scanline
-Mikrubi.trimedge
-Mikrubi.strokeedge
-Mikrubi.strokepath
-Mikrubi.geom2mat
+Mikrubi.getpixels
+Mikrubi.getcounties
+Mikrubi.getpixel
+Mikrubi.getcounty
+Mikrubi.indicate
+Mikrubi.register!
+Mikrubi.ispoly
 ```
 
 ## [Processing the raster layers](@id makefield)
@@ -115,17 +111,22 @@ makefield
 
 #### Internal functions
 
-These internal functions are called directly or indirectly inside [`makefield`](@ref). Customization is possible when necessary, for example, when the affine transformation during principal component analysis is explicitly wanted.
-
 ```@docs
+Mikrubi.colmatrix
 Mikrubi.masklayers!
 Mikrubi.extractlayers
+Mikrubi.emptylayer!
 Mikrubi.emptylayer
+Mikrubi.emptylayers
 Mikrubi.makelayer
 Mikrubi.makelayers
 Mikrubi.dftraverse!
 Mikrubi.selectvars
 Mikrubi.princompvars
+Mikrubi.DimLower
+Mikrubi.dimpoints
+Mikrubi.centercoords
+Mikrubi.buildfield
 ```
 
 ## The Mikrubi core
@@ -219,4 +220,6 @@ Mikrubi.probpixels
 Mikrubi.findnearest
 Mikrubi.findnearests
 Mikrubi.loglipschitz
+Mikrubi.textwrap
+Mikrubi.@tw_str
 ```

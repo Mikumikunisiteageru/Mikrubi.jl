@@ -13,7 +13,7 @@ shppath = GADM.download("NPL") # ISO code of Nepal
 
 using RasterDataSources
 ENV["RASTERDATASOURCES_PATH"] = "path/for/data/download"
-getraster(WorldClim{BioClim}, res="10m") # 10 min resolution
+getraster(WorldClim{BioClim}, res="10m") # 10-min resolution
 climpath = RasterDataSources.rasterpath(WorldClim{BioClim})
 
 # The two data sets above should have been prapared in paths `shppath` and `climpath` respectively. Now they can be read and handled with Mikrubi.jl.
@@ -42,7 +42,6 @@ writelayer("path/to/output/geodist.tif", geodist)
 
 # And it can also be illustrated via the package PyPlot.jl (note: this requires Python and its package `matplotlib`) and the submodule `Graphics` of Mikrubi.jl.
 
-using .Graphics
 using PyPlot
 setplot(PyPlot)
 showlayer(geodist)

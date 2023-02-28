@@ -90,6 +90,7 @@ function sortfilenames!(filenames::AbstractVector{<:AbstractString})
 end
 
 """
+	readlayers(filenames::Vector{<:AbstractString}) :: RasterStack
 	readlayers(dir::AbstractString; extset=nothing) :: RasterStack
 
 Read all raster layers from the directory `dir` as a `RasterStack`. 
@@ -99,14 +100,14 @@ or `[".tiff"]`; see also [`readshape`](@ref)). By setting `extset` to
 `nothing`, the extension filtering is not processed, i.e., all files are 
 regarded as raster files. 
 """
-function readlayers(dir::AbstractString; extset=nothing)
-	filenames = filterext(dir, extset)
-	sortfilenames!(filenames)
+function readlayers(filenames::AbstractVector{<:AbstractString})
 	layers = RasterStack(filenames)
 	keyz = keys(layers)
 	return RasterStack(map(key -> Float64.(layers[key]), keyz); name=keyz)
 		# for better numerical stability
 end
+readlayers(dir::AbstractString; extset=nothing) = 
+	readlayers(sortfilenames!(filterext(dir, extset)))
 
 """
 	writelayer(path::AbstractString, layer::Raster) :: Nothing

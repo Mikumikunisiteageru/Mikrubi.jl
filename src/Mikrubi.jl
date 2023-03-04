@@ -1,6 +1,11 @@
 # src/Mikrubi.jl
 
 module Mikrubi
+@doc let
+    path = joinpath(dirname(@__DIR__), "README.md")
+    include_dependency(path)
+    read(path, String)
+end Mikrubi
 
 using Rasters
 using RecipesBase
@@ -26,6 +31,8 @@ export readlist, writelist, fit
 export predict, predictcounty, probcounties, samplecounties
 export lipschitz
 export setplot, showlayer, showfield, showctpixels, showshptable
+
+export Graphics # deprecated
 
 const MAXPCADIM = 4
 

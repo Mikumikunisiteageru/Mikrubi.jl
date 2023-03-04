@@ -2,8 +2,6 @@
 
 using Mikrubi
 
-cd(joinpath(pkgdir(Mikrubi), "docs"))
-
 using Documenter
 
 makedocs(
@@ -14,4 +12,9 @@ makedocs(
 		"Graphics" => "graphics.md",
 		],
 	modules = [Mikrubi],
+)
+
+deploydocs(
+    repo = "github.com/Mikumikunisiteageru/Mikrubi.jl.git",
+	versions = ["stable" => "v^", "v#.#.#"]
 )

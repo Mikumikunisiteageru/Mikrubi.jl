@@ -22,7 +22,7 @@ To estimate the fine-scale distribution of a species using its presence or absen
 
 ## Workflow
 
-A typical workflow of the package resembles the following lines, where `shppath` refers to the path to the map file, `climpath` refers to the directory path to the raster files, and `ctlistpath` refers to the path to the list containing lines of integers representing the regions.
+A typical workflow of the package resembles the following lines, where `shppath` refers to the path to the map file, `climpath` refers to the directory path to the raster files, and `ctlistpath` refers to the path to the list containing lines of integer identifiers representing the regions.
 
 ```julia
 using Mikrubi

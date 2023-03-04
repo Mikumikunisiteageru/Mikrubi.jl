@@ -1,37 +1,12 @@
 # Mikrubi.jl
 
-*A model for species distributions on region-based records.*
-
-Mikrubi is a species distribution model (SDM) based on rough occurrences and/or precise coordinates. 
-
-If you want to model the geographic distribution or the ecological niche of a species on its region-based records (e.g. in administrative units) and maybe also with some coordinates, Mikrubi.jl is a good option.
-
-## Workflow
-
-In this documentation, the word "county" is regarded temporarily as a term, referring to the regions that are occupied or unoccupied. 
-
-Suppose we want to model the fine-scale distribution of a certain species while knowing its occupied counties of a certain country. To start Mikrubi, we need to prepare three requisites:
-
-- A map located at the path `shppath`, describing shapes of all counties as polygons. For many countries or regions, such an administrative partition map can be found from [Database of Global Administrative Areas](https://gadm.org/, can be accessed via GADM.jl, see examples/prinsepia/jui.jl). Especially for China, the accepted county-level shapefile is available from [National Platform of Common Geospatial Information Services](https://www.tianditu.gov.cn/) and [Gaode Map Open Platform](https://lbs.amap.com/).
-
-- A directory `climpath`, containing typically multiple raster layers usually from [WorldClim](https://worldclim.org/data/index.html), of the same size, shape, and resolution.  
-
-- A list of integers explicitly provided or written in file at path `ctlistpath`, each integer of which corresponds to the row number of an occupied county in the `shppath`. 
-
-Then the workflow can be summarized as the following:
-
-```julia
-using Mikrubi
-shptable = readshape(shppath)
-layers = readlayers(climpath)
-ctlist = readlist(ctlistpath)
-field, ylayers = makefield(layers, shptable)
-model = fit(field, ctlist)
-geodist = predict(ylayers, model)
-writelayer("path/to/output/geodist.tif", geodist)
+```@docs
+Mikrubi
 ```
 
-Now we take *Allium wallichii* in China as an example (for the same case, codes with more details are also available in `examples/alliwalli/workflow.jl`; for graphic representation of variables here, please visit [Graphics](@ref)):
+## A workflow example
+
+We take *Allium wallichii* in China as an example. For more details, please check `examples/alliwalli/workflow.jl`; for the graphic representation of the variables, please visit [Graphics](@ref)).
 
 ```julia
 julia> using Mikrubi
@@ -151,7 +126,7 @@ julia> writelayer("path/to/output/geodist.tif", geodist)
 
 ```
 
-## Manual Outline
+## Outline of [Manual](@ref)
 
 ```@contents
 Pages = [
@@ -160,7 +135,7 @@ Pages = [
 Depth = 3
 ```
 
-## Graphics Outline
+## Outline of [Graphics](@ref)
 
 ```@contents
 Pages = [

@@ -291,9 +291,7 @@ function fit(field::MikrubiField, counties, coords=zeros(0, 0);
 		error("No meaningful occupied counties or coordinates!")
 	cdvars = field.vars[indcoords, :]
 	fun(params) = mlogL(field, valcounties, params) + mlogL(cdvars, params)
-	# zeroes = zeros(eltype(field.vars), dvar2dparam(field.dvar))
-	# TODO: fix the bug in Optim.jl involving NaN32
-	zeroes = zeros(Float64, dvar2dparam(field.dvar))
+	zeroes = zeros(eltype(field.vars), dvar2dparam(field.dvar))
 	@info "Now minimizing the opposite likelihood function..."
 	result = optimize(fun, zeroes, NelderMead(), Options(
 		iterations=iterations, show_trace=true, show_every=500; kwargs...))
@@ -304,7 +302,6 @@ function fit(field::MikrubiField, counties, coords=zeros(0, 0);
 	push!(optresult, result)
 	@info "Maximized log-likeliness: $(-result.minimum)"
 	MikrubiModel(field.dvar, result.minimizer)
-	# MikrubiModel(field.dvar, eltype(field.vars).(result.minimizer))
 end
 
 """

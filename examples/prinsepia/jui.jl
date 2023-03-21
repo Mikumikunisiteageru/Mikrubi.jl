@@ -12,7 +12,7 @@ shppath = GADM.download("NPL") # ISO code of Nepal
 # The climatic factors can likewise be downloaded from WorldClim via the packae RasterDataSources.jl.
 
 using RasterDataSources
-ENV["RASTERDATASOURCES_PATH"] = "path/for/data/download"
+get!(ENV, "RASTERDATASOURCES_PATH", "path/for/data/download")
 getraster(WorldClim{BioClim}, res="10m") # 10-min resolution
 climpath = RasterDataSources.rasterpath(WorldClim{BioClim})
 

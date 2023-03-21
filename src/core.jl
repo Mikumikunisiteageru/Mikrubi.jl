@@ -1,21 +1,6 @@
 # src/core.jl
 
 """
-	logistic(x)
-
-Compute ``\\operatorname{logistic}(x) := 1 / (1 + \\exp(x))``.
-"""
-logistic(x::T) where {T<:AbstractFloat} = one(T) / (one(T) + exp(-x))
-logistic(x::Real) = logistic(float(x))
-
-"""
-	loglogistic(x)
-
-Compute ``\\log(\\operatorname{logistic}(x)) = -\\log(1 + \\exp(-x))``.
-"""
-loglogistic(x::Real) = -log1p(exp(-x))
-
-"""
 	dvar2dparam(dvar::Int) :: Int
 
 Convert dimensionality of an environmental space to the dimensionality of

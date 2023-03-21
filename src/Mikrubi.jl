@@ -7,8 +7,6 @@ module Mikrubi
     read(path, String)
 end Mikrubi
 
-using Logistics
-
 using Rasters
 using RecipesBase
 
@@ -16,6 +14,7 @@ import ArchGDAL; const AG = ArchGDAL
 import GeoInterface; const GI = GeoInterface
 import DimensionalData; const DD = DimensionalData
 
+import Logistics: Logistic, logistic, loglogistic
 import Printf: @sprintf
 import DelimitedFiles: readdlm, writedlm
 import Statistics: mean, std, cor

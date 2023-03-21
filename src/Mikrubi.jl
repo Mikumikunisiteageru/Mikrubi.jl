@@ -7,6 +7,8 @@ module Mikrubi
     read(path, String)
 end Mikrubi
 
+using Logistics
+
 using Rasters
 using RecipesBase
 

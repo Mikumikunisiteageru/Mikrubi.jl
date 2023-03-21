@@ -200,22 +200,13 @@ Overfitting can be detected with the Lipschitz constant, the (logarithmic) maxim
 lipschitz
 ```
 
-### Mathematic functions
-
-Two mathematic functions used in the core are exported for convenience.
-
-```@docs
-logistic
-loglogistic
-```
-
 #### Internal functions
 
 ```@docs
 Mikrubi.dvar2dparam
 Mikrubi.decomparams
-Mikrubi.loglike
-Mikrubi.energy
+Mikrubi.pabsence
+Mikrubi.mlogL
 Mikrubi.probpixels
 Mikrubi.findnearest
 Mikrubi.findnearests

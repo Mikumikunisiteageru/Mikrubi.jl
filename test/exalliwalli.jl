@@ -65,8 +65,8 @@ end
 		 1.2090116395112087, -0.10334796181736790, 14.747024521778938, 
 		-14.878922083170924,  11.9705675223002300, 30.299436373642205])
 	model1 = MikrubiModel(3, [1.4,-1.4,-0.4,1.1,1.2,-0.1,14.7,-14.9,12.0,30.3])
-	e0 = Mikrubi.energy(china, ctlist, model.params)
-	e1 = Mikrubi.energy(china, ctlist, model1.params)
+	e0 = Mikrubi.mlogL(china, ctlist, model.params)
+	e1 = Mikrubi.mlogL(china, ctlist, model1.params)
 	@test isapprox(e0, 126.65599400745549)
 	@test isapprox(e1, 303.59978177848010)
 	@test e0 < e1

@@ -203,8 +203,8 @@ end
 		0.3960510254962835, 0.00011517895691697269, 193.3943652333833, 
 		-1.5361309085483503, 24.225666096714022, 181.11673123077227])
 	model1 = MikrubiModel(3, model.params .* 1.01f0)
-	e0 = Mikrubi.energy(field, regcodes, model.params)
-	e1 = Mikrubi.energy(field, regcodes, model1.params)
+	e0 = Mikrubi.mlogL(field, regcodes, model.params)
+	e1 = Mikrubi.mlogL(field, regcodes, model1.params)
 	@test isapprox(e0, 20.805983368146116)
 	@test isapprox(e1, 34.81738959663534)
 	@test e0 < e1

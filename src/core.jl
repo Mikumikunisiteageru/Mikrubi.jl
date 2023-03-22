@@ -1,21 +1,6 @@
 # src/core.jl
 
 """
-	logistic(x)
-
-Compute ``\\operatorname{logistic}(x) := 1 / (1 + \\exp(x))``.
-"""
-logistic(x::T) where {T<:AbstractFloat} = one(T) / (one(T) + exp(-x))
-logistic(x::Real) = logistic(float(x))
-
-"""
-	loglogistic(x)
-
-Compute ``\\log(\\operatorname{logistic}(x)) = -\\log(1 + \\exp(-x))``.
-"""
-loglogistic(x::Real) = -log1p(exp(-x))
-
-"""
 	dvar2dparam(dvar::Int) :: Int
 
 Convert dimensionality of an environmental space to the dimensionality of
@@ -208,17 +193,50 @@ end
 decomparams(model::MikrubiModel) = decomparams(model.params, model.dvar)
 
 """
-	loglike(field::MikrubiField, params::AbstractVector) 
-		:: Vector{<:AbstractFloat}
+	pabsence(vars::AbstractMatrix, params::AbstractVector) :: Logistic
+	pabsence(field::MikrubiField, params::AbstractVector) :: Logistic
 
-Compute the log-likelihood of being absent in each pixel given `field` and
-`params`.
+Compute the probability of absence at pixels given `vars`/`field` and `params`.	
 """
-function loglike(field::MikrubiField, params::AbstractVector)
-	At, b, c = decomparams(params, field.dvar)
-	pv = field.vars
-	loglogistic.(sum((pv * At) .^ 2, dims=2)[:] .+ pv * b .+ c)
+function pabsence(vars::AbstractMatrix, params::AbstractVector)
+	At, b, c = decomparams(params, size(vars, 2))
+	return Logistic.(sum((vars * At) .^ 2, dims=2)[:] .+ vars * b .+ c)
 end
+pabsence(field::MikrubiField, params::AbstractVector) = 
+	pabsence(field.vars, params)
+
+"""
+	ppresence(vars::AbstractMatrix, params::AbstractVector) :: Logistic
+	ppresence(field::MikrubiField, params::AbstractVector) :: Logistic
+
+Compute the probability of presence at pixels given `vars`/`field` and `params`.	
+"""
+ppresence(vars::AbstractMatrix, params::AbstractVector) = 
+	complement.(pabsence(vars, params))
+ppresence(field::MikrubiField, params::AbstractVector) = 
+	complement.(pabsence(field, params))
+
+"""
+	mlogL(field::MikrubiField, counties, params::AbstractVector)
+		:: AbstractFloat
+	mlogL(vars::AbstractMatrix, params::AbstractVector) :: AbstractFloat
+
+Compute the opposite log-likelihood that the occupied counties or occupied 
+coordinates are sampled. The opposite is taken for optimization.
+"""
+function mlogL(field::MikrubiField, counties, params::AbstractVector)
+	e = pabsence(field, params)
+	for o = counties
+		start = field.starts[o]
+		stop = field.stops[o]
+		subprod = prod(e[start:stop], init=one(eltype(e)))
+		e[start:stop] .= one(eltype(e))
+		e[start] = complement(subprod)
+	end
+	return -sum(log.(e))
+end
+mlogL(vars::AbstractMatrix, params::AbstractVector) = 
+	-sum(log.(ppresence(vars, params)))
 
 """
 	findnearest(loc::AbstractVecOrMat{<:Real}, field::MikrubiField) :: Int
@@ -251,33 +269,6 @@ findnearests(loc::AbstractMatrix, field::MikrubiField) =
 	unique(findnearest.(eachrow(float.(loc)), [field]))
 
 """
-	energy(field::MikrubiField, counties, params::AbstractVector)
-		:: AbstractFloat
-	energy(vars::AbstractMatrix, params::AbstractVector) :: AbstractFloat
-
-Compute the opposite log-likelihood that the occupied counties or occupied 
-coordinates are sampled. 
-The result is taken opposite sign for optimization, and therefore the function 
-is called `energy`.
-"""
-function energy(field::MikrubiField, counties, params::AbstractVector)
-	e = loglike(field, params)
-	for o = counties
-		start = field.starts[o]
-		stop = field.stops[o]
-		subsum = sum(e[start:stop])
-		e[start:stop] .= 0
-		e[start] = log(1 - exp(subsum))
-	end
-	- sum(e)
-end
-function energy(vars::AbstractMatrix, params::AbstractVector)
-	At, b, c = decomparams(params, size(vars, 2))
-	prallp = 1 .- logistic.(sum((vars * At) .^ 2, dims=2)[:] .+ vars * b .+ c)
-	- sum(log.(prallp))
-end
-
-"""
 	fit(field::MikrubiField, counties, coords=zeros(0, 0); 
 		optresult=[], iterations=3_000_000, kwargs...) :: MikrubiModel
 
@@ -293,10 +284,8 @@ function fit(field::MikrubiField, counties, coords=zeros(0, 0);
 	isempty(valcounties) && isempty(indcoords) &&
 		error("No meaningful occupied counties or coordinates!")
 	cdvars = field.vars[indcoords, :]
-	fun(params) = energy(field, valcounties, params) + energy(cdvars, params)
-	# zeroes = zeros(eltype(field.vars), dvar2dparam(field.dvar))
-	# TODO: fix the bug in Optim.jl involving NaN32
-	zeroes = zeros(Float64, dvar2dparam(field.dvar))
+	fun(params) = mlogL(field, valcounties, params) + mlogL(cdvars, params)
+	zeroes = zeros(eltype(field.vars), dvar2dparam(field.dvar))
 	@info "Now minimizing the opposite likelihood function..."
 	result = optimize(fun, zeroes, NelderMead(), Options(
 		iterations=iterations, show_trace=true, show_every=500; kwargs...))
@@ -306,8 +295,7 @@ function fit(field::MikrubiField, counties, coords=zeros(0, 0);
 			maximizer may be unreliable. Please try to enlarge the parameter.")
 	push!(optresult, result)
 	@info "Maximized log-likeliness: $(-result.minimum)"
-	# MikrubiModel(field.dvar, result.minimizer)
-	MikrubiModel(field.dvar, eltype(field.vars).(result.minimizer))
+	MikrubiModel(field.dvar, result.minimizer)
 end
 
 """
@@ -324,8 +312,7 @@ function predict(matrix::AbstractMatrix, model::MikrubiModel)
 		throw(DimensionMismatch("The number of columns of the matrix 
 			($(size(matrix, 2))) is different from the dimensionality of the 
 			model ($(model.dvar))!"))
-	At, b, c = decomparams(model)
-	1 .- logistic.(sum((matrix * At) .^ 2, dims=2)[:] .+ matrix * b .+ c)
+	return float.(ppresence(matrix, model.params))
 end
 function predict(layers::RasterStack, model::MikrubiModel)
 	matrix, idx = extractlayers(layers)
@@ -368,17 +355,17 @@ Compute the probability for every county to be occupied in the `field`.
 """
 function probcounties(field::MikrubiField{T, U, V}, 
 		model::MikrubiModel{V}) where {T, U <: Real, V <: AbstractFloat}
-	ll = loglike(field, model.params)
-	logmprcounties = Dict{T, V}()
+	logpabsence = log.(pabsence(field, model.params))
+	logPabsence = Dict{T, V}()
 	for i = 1:field.npixel
 		id = field.ctids[i]
-		logmprcounties[id] = ll[i] + get(logmprcounties, id, 0)
+		logPabsence[id] = logpabsence[i] + get(logPabsence, id, zero(V))
 	end
-	prcounties = Dict{T, V}()
+	Ppresence = Dict{T, V}()
 	for id = field.ids
-		prcounties[id] = 1 - exp(logmprcounties[id])
+		Ppresence[id] = -expm1(logPabsence[id])
 	end
-	prcounties
+	Ppresence
 end
 
 """
@@ -387,9 +374,9 @@ end
 Sample counties according to their probability of being occupied.
 """
 function samplecounties(field::MikrubiField, model::MikrubiModel)
-	prcounties = probcounties(field, model)
+	Ppresence = probcounties(field, model)
 	@inline bernoulli(p) = rand() <= p
-	sort!([k for k = keys(prcounties) if bernoulli(prcounties[k])])
+	sort!([k for k = keys(Ppresence) if bernoulli(Ppresence[k])])
 end
 
 """

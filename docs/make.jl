@@ -5,7 +5,7 @@ using Mikrubi
 using Documenter
 
 makedocs(
-	sitename = "A Manual for Mikrubi",
+	sitename = "Mikrubi.jl",
 	pages = [
 		"Home" => "index.md",
 		"Manual" => "manual.md",

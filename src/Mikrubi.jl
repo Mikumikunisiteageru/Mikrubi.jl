@@ -14,6 +14,7 @@ import ArchGDAL; const AG = ArchGDAL
 import GeoInterface; const GI = GeoInterface
 import DimensionalData; const DD = DimensionalData
 
+import Logistics: Logistic, logistic, loglogistic, complement
 import Printf: @sprintf
 import DelimitedFiles: readdlm, writedlm
 import Statistics: mean, std, cor

@@ -220,7 +220,7 @@ function mlogL(field::MikrubiField, counties, params::AbstractVector)
 	for o = counties
 		start = field.starts[o]
 		stop = field.stops[o]
-		subprod = prod(e[start:stop])
+		subprod = prod(e[start:stop], init=one(eltype(e)))
 		e[start:stop] .= one(eltype(e))
 		e[start] = complement(subprod)
 	end

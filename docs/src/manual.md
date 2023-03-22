@@ -206,6 +206,7 @@ lipschitz
 Mikrubi.dvar2dparam
 Mikrubi.decomparams
 Mikrubi.pabsence
+Mikrubi.ppresence
 Mikrubi.mlogL
 Mikrubi.probpixels
 Mikrubi.findnearest

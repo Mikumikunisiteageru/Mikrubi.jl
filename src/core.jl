@@ -193,8 +193,8 @@ end
 decomparams(model::MikrubiModel) = decomparams(model.params, model.dvar)
 
 """
-	pabsence(vars::AbstractMatrix, params::AbstractVector)
-	pabsence(field::MikrubiField, params::AbstractVector)
+	pabsence(vars::AbstractMatrix, params::AbstractVector) :: Logistic
+	pabsence(field::MikrubiField, params::AbstractVector) :: Logistic
 
 Compute the probability of absence at pixels given `vars`/`field` and `params`.	
 """
@@ -205,7 +205,16 @@ end
 pabsence(field::MikrubiField, params::AbstractVector) = 
 	pabsence(field.vars, params)
 
-ppresence(fieldorvars, params) = complement.(pabsence(fieldorvars, params))
+"""
+	ppresence(vars::AbstractMatrix, params::AbstractVector) :: Logistic
+	ppresence(field::MikrubiField, params::AbstractVector) :: Logistic
+
+Compute the probability of presence at pixels given `vars`/`field` and `params`.	
+"""
+ppresence(vars::AbstractMatrix, params::AbstractVector) = 
+	complement.(pabsence(vars, params))
+ppresence(field::MikrubiField, params::AbstractVector) = 
+	complement.(pabsence(field, params))
 
 """
 	mlogL(field::MikrubiField, counties, params::AbstractVector)

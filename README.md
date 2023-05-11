@@ -34,3 +34,26 @@ model = fit(field, ctlist)
 geodist = predict(ylayers, model)
 writelayer("path/to/output/geodist.tif", geodist)
 ```
+
+## Citation
+
+An introduction of this package and the model it implements has been published on [Ecography (10.1111/ecog.06283)](https://onlinelibrary.wiley.com/doi/full/10.1111/ecog.06283).
+
+If you apply the package or the model in your research, please cite them via the paper above or as the following after substituting the version:
+```
+Yang, Y.-C., Zhang, Q. and Chen, Z.-D. 2023. Mikrubi: a model for species distributions using region-based records. – Ecography 2023: e06283 (ver. 1.3.2).
+```
+The equivalent BibTeX file for citation is available at [CITATION.bib](https://github.com/Mikumikunisiteageru/Mikrubi.jl/blob/main/README.md). You may also import this file or the following BibTeX code block to your reference management software.
+```bibtex
+@article{Mikrubi2023,
+	author = {Yang, Yu-Chang and Zhang, Qian and Chen, Zhi-Duan},
+	title = {Mikrubi: a model for species distributions using region-based records},
+	journal = {Ecography},
+	year = {2023},
+	volume = {2023},
+	pages = {e06283},
+	doi = {https://doi.org/10.1111/ecog.06283},
+	url = {https://onlinelibrary.wiley.com/doi/abs/10.1111/ecog.06283},
+	eprint = {https://onlinelibrary.wiley.com/doi/pdf/10.1111/ecog.06283},
+}
+```

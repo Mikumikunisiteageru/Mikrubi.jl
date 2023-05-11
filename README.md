@@ -8,7 +8,14 @@
 
 *Mikrubi: a model for species distributions using region-based records*
 
-Many species occurrence records from specimens and publications are based on regions such as administrative units (thus sometimes called `counties` in the codes). These region-based records are accessible and dependable, and sometimes they are the only available data source; however, few species distribution models accept such data as direct input. In Yang et al. (unpublished), we present a method named Mikrubi for robust prediction of species distributions from region-based occurrence data. This is the Julia package implementing the algorithms. 
+Many species occurrence records from specimens and publications are based on regions such as administrative units (thus sometimes called `counties` in the codes). These region-based records are accessible and dependable, and sometimes they are the only available data source; however, few species distribution models accept such data as direct input. In [Yang et al. (2023)](https://onlinelibrary.wiley.com/doi/full/10.1111/ecog.06283), we present a method named Mikrubi for robust prediction of species distributions from region-based occurrence data. This is the Julia package implementing the algorithms. 
+
+## Installation
+
+Mikrubi currently requires Julia v1.7.0 or higher. This registered package can be installed inside the Julia REPL by typing
+```julia
+]add Mikrubi
+```
 
 ## Input data requirements
 

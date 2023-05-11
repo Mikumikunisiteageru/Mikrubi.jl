@@ -50,7 +50,7 @@ If you apply the package or the model in your research, please cite them via the
 ```
 Yang, Y.-C., Zhang, Q. and Chen, Z.-D. 2023. Mikrubi: a model for species distributions using region-based records. – Ecography 2023: e06283 (ver. 1.3.2).
 ```
-The equivalent BibTeX file for citation is available at [CITATION.bib](https://github.com/Mikumikunisiteageru/Mikrubi.jl/blob/main/README.md). You may also import this file or the following BibTeX code block to your reference management software.
+The equivalent BibTeX file for citation is available at [CITATION.bib](https://github.com/Mikumikunisiteageru/Mikrubi.jl/blob/main/CITATION.bib). You may also import this file or the following BibTeX code block to your reference management software.
 ```bibtex
 @article{Mikrubi2023,
 	author = {Yang, Yu-Chang and Zhang, Qian and Chen, Zhi-Duan},

@@ -112,7 +112,7 @@ function xy2ij(layer, x, y)
 end
 
 """
-	showlayer(layer; f=identity, kwargs...)
+	showfield(layer; f=identity, kwargs...)
 	showfield(field, layer; f=tiedrank, kwargs...)
 
 Show geographic information and environmental information of a Mikrubi model.

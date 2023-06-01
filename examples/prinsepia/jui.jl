@@ -40,8 +40,7 @@ geodist = predict(ylayers, model)
 
 writelayer("path/to/output/geodist.tif", geodist)
 
-# And it can also be illustrated via the package PyPlot.jl (note: this requires Python and its package `matplotlib`) and the submodule `Graphics` of Mikrubi.jl.
+# And it can also be illustrated via the package PyPlot.jl (note: this requires Python and its package `matplotlib`).
 
 using PyPlot
-setplot(PyPlot)
 showlayer(geodist)

@@ -87,11 +87,10 @@ savefig("plots_field.png")
 
 ## Plotting with PyPlot
 
-Since the PyPlot plotting engine is substantially the wrapped Python package `matplotlib`, users who wish to use PyPlot have to manually install the package, and then tell Mikrubi to use it by the following lines.
+Since the PyPlot plotting engine is substantially the wrapped Python package `matplotlib`, users who wish to use PyPlot should manually install the package (e.g. `pip install matplotlib` in terminal). Mikrubi can use PyPlot after it is loaded in the current session by:
 
 ```julia
 using PyPlot
-setplot(PyPlot)
 ```
 
 Four functions are provided to illustrate the objects of different types.
@@ -110,7 +109,6 @@ In the beginning, here we get the packages, path strings, and decoration functio
 ```julia
 using Mikrubi
 using PyPlot
-setplot(PyPlot)
 
 shppath = "path/to/china/counties.shp";
 climpath = "path/to/worldclim/layers";

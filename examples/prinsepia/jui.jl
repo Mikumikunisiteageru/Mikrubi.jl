@@ -19,7 +19,7 @@ climpath = RasterDataSources.rasterpath(WorldClim{BioClim})
 # The two data sets above should have been prapared in paths `shppath` and `climpath` respectively. Now they can be read and handled with Mikrubi.jl.
 
 using Mikrubi
-shptable = readshape(shppath, 1) # District-level
+shptable = readshape(shppath, 3) # District-level
 layers = readlayers(climpath)
 field, ylayers = makefield(layers, shptable)
 

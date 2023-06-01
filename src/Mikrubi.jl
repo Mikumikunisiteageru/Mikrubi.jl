@@ -9,6 +9,7 @@ end Mikrubi
 
 using Rasters
 using RecipesBase
+using Requires
 
 import ArchGDAL; const AG = ArchGDAL
 import GeoInterface; const GI = GeoInterface
@@ -31,9 +32,6 @@ export MikrubiModel, readmodel, writemodel
 export readlist, writelist, fit
 export predict, predictcounty, probcounties, samplecounties
 export lipschitz
-export setplot, showlayer, showfield, showctpixels, showshptable
-
-export Graphics # deprecated
 
 const MAXPCADIM = 4
 
@@ -60,6 +58,10 @@ include("shape.jl")
 include("layer.jl")
 include("core.jl")
 include("recipesbase.jl")
-include("pyplot.jl")
+include("deprecated.jl")
+
+function __init__()
+    @require PyPlot="d330b81b-6aea-500a-939a-2ce795aea3ee" include("pyplot.jl")
+end
 
 end # module

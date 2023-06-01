@@ -74,6 +74,10 @@ function xylim(image::AbstractMatrix{<:RGB}, grid::Raster)
 	return [xg0, xg1], [yg0, yg1], wider * [xl0, xl1], wider * [yl0, yl1]
 end
 
+function xy2ij(layer, x, y)
+	DD.dims2indices.(dims(layer)[1:2], [X(Near(x)), Y(Near(y))])
+end
+
 struct MPlot end
 
 @recipe f(shptable::AG.IFeatureLayer) = AG.getgeom.(shptable)

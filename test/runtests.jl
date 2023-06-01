@@ -20,4 +20,4 @@ Aqua.test_project_toml_formatting(Mikrubi)
 @safetestset "exalliwalli" begin include("exalliwalli.jl") end
 @safetestset "exjui" begin include("exjui.jl") end
 @safetestset "recipesbase" begin include("recipesbase.jl") end
-# @safetestset "pyplot" begin include("pyplot.jl") end
+@safetestset "pyplot" begin include("pyplot.jl") end

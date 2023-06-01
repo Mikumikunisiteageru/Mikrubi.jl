@@ -16,7 +16,7 @@ get!(ENV, "RASTERDATASOURCES_PATH", tempdir())
 RDS.getraster(RDS.WorldClim{RDS.BioClim}, res="10m")
 climpath = RDS.rasterpath(RDS.WorldClim{RDS.BioClim})
 
-shptable = readshape(shppath, 1)
+shptable = readshape(shppath, 3)
 layers = readlayers(climpath)
 layer = first(layers)
 ctpixels = rasterize(shptable, layer)

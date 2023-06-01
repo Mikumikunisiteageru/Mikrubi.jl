@@ -37,7 +37,7 @@ climpath = RDS.rasterpath(RDS.WorldClim{RDS.BioClim})
 The variable `shptable`, what is read through [`readshape`](@ref), called a shape file here, can be `plot`ted.
 
 ```
-shptable = readshape(shppath, 1);
+shptable = readshape(shppath, 3);
 
 plot(shptable)
 savefig("plots_shptable.png")

@@ -10,13 +10,14 @@ import RasterDataSources; const RDS = RasterDataSources
 import Rasters
 
 @testset "GADM" begin
-	global shppath = GADM.download("NPL"; version="3.6")
+	global shppath = GADM.download("NPL"; version="4.1")
 	@test isdir(shppath)
 	shpfiles = readdir(shppath, join=false, sort=true)
-	@test length(shpfiles) == 2
-	global gpkg, license = shpfiles
-	@test gpkg == "gadm36_NPL.gpkg"
-	@test license == "license.txt"
+	@test length(shpfiles) == 1
+	global gpkg, = shpfiles
+	@show shppath
+	@show gpkg
+	@test gpkg == "gadm41_NPL.gpkg"
 end
 
 @testset "RasterDataSources" begin
@@ -33,20 +34,19 @@ end
 end
 
 @testset "readshape" begin
-	@test_throws GDAL.GDALError readshape(joinpath(shppath, license))
 	@test_throws ErrorException readshape(joinpath(shppath, gpkg))
 	@test_throws ErrorException readshape(joinpath(shppath, gpkg), -1)
 	readshape(joinpath(shppath, gpkg), 4)
 	@test_throws ErrorException readshape(joinpath(shppath, gpkg), 5)
 	@test_throws ErrorException readshape(shppath)
 	@test_throws ErrorException readshape(shppath, -1)
-	global shptable = readshape(shppath, 1)
+	global shptable = readshape(shppath, 3)
 	@test isa(shptable, AG.IFeatureLayer)
-	@test AG.getname(shptable) == "gadm36_NPL_3"
+	@test AG.getname(shptable) == "ADM_ADM_3"
 	@test AG.nfeature(shptable) == 75
-	pt = AG.getgeom(AG.getgeom(AG.getgeom(first(shptable), 0), 0), 39)
-	@test isapprox(AG.getx(pt, 0), 85.39049530)
-	@test isapprox(AG.gety(pt, 0), 27.70082092)
+	pt = AG.getgeom(AG.getgeom(AG.getgeom(first(shptable), 0), 0), 0)
+	@test isapprox(AG.getx(pt, 0), 85.406402588)
+	@test isapprox(AG.gety(pt, 0), 27.632347107)
 end
 
 @testset "readlayers" begin

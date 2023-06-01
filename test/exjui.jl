@@ -1,6 +1,7 @@
 # test/exjui.jl
 
 using Mikrubi
+using Logistics
 using Test
 
 import ArchGDAL; const AG = ArchGDAL
@@ -144,9 +145,15 @@ end
 
 @testset "makefield" begin
 	f0, yl0 = makefield(layers, ctpixels)
+	@test sprint(show, f0) === 
+		"Mikrubi Field: geo_dim = 2, env_dim = 3, 1127 pixels, and 75 counties"
 	@test sum(Rasters.boolmask(layers)) == 808053
 	@test isa(f0, MikrubiField)
 	@test isa(yl0, Rasters.RasterStack)
+	path = joinpath(tempdir(), "field.mkuf")
+	@test nothing === writefield(path, f0)
+	str = String(read(path))
+	@test str[1:12] == "I\tL\tL\tV\tV\tV\n"
 	global field, ylayers = makefield(layers, shptable);
 	@test sum(Rasters.boolmask(layers)) == 808053
 	@test yl0 == ylayers
@@ -190,6 +197,22 @@ end
 	@test regcodes == [37,43,41,53,54,48,52,57,50,60,61,67,64,6,7,31,34]
 end
 
+@testset "findnearest" begin
+	@test_throws ErrorException Mikrubi.findnearest([85.32], field)
+	@test_throws ErrorException Mikrubi.findnearest([8, 5, 3, 2], field)
+	@test Mikrubi.findnearest([85.321201, 27.722903], field) == 19
+	@test Mikrubi.findnearest([85.321201 27.722903], field) == 19
+	@test Mikrubi.findnearest([85.321201 27.722903]', field) == 19
+	@test isapprox(field.locs[19, :], [85.25, 27.75])
+end
+
+@testset "findnearests" begin
+	@test Mikrubi.findnearests(
+		[85.321201 27.722903; 89.368606 24.85836], field) == [19, 345]
+	@test Mikrubi.findnearests(
+		[[85.321201, 27.722903], [89.368606, 24.85836]], field) == [19, 345]
+end
+
 @testset "fit" begin
 	optresults = []
 	global model = fit(field, regcodes; optresult=optresults)
@@ -208,6 +231,12 @@ end
 	@test isapprox(e0, 20.805983368146116)
 	@test isapprox(e1, 34.81738959663534)
 	@test e0 < e1
+	pp = Mikrubi.ppresence(field, model.params)
+	@test isa(pp, Vector{Logistic{Float64}})
+	@test size(pp) == (1127,)
+	pp1 = Mikrubi.ppresence(field.vars, model.params)
+	@test pp1 == pp
+	@test typeof(pp1) == typeof(pp)
 end
 
 @testset "predict" begin

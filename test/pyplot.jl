@@ -23,6 +23,8 @@ end
 import GADM
 import RasterDataSources; const RDS = RasterDataSources
 
+import ArchGDAL; const AG = ArchGDAL
+
 shppath = GADM.download("NPL")
 
 get!(ENV, "RASTERDATASOURCES_PATH", tempdir())
@@ -39,24 +41,42 @@ field, ylayers = makefield(layers, shptable)
 	@test setplot(PyPlot) === nothing
 end
 
-@testset "show a shptable" begin
+@testset "geom2mat" begin
+	multipolygon = AG.getgeom(first(shptable), 0)
+	@test isa(multipolygon, AG.IGeometry{AG.wkbMultiPolygon})
+	parts, mat = Mikrubi.geom2mat(multipolygon)
+	@test parts == [0]
+	@test size(mat) == (2, 118)
+	@test isapprox(last(mat), 27.632347107)
+	polygon = AG.getgeom(multipolygon, 0)
+	@test isa(polygon, AG.IGeometry{AG.wkbPolygon})
+	parts, mat = Mikrubi.geom2mat(polygon)
+	@test parts == [0]
+	@test size(mat) == (2, 118)
+	@test isapprox(last(mat), 27.632347107)
+	linearring = AG.getgeom(polygon, 0)
+	@test isa(linearring, AG.IGeometry{AG.wkbLineString})
+	@test_throws ErrorException Mikrubi.geom2mat(linearring)
+end
+
+@testset "showshptable" begin
 	@test isa(showshptable(shptable), Vector{<:PyObject})
 	close()
 end
 
-@testset "show a layer" begin
+@testset "showlayer" begin
 	@test isa(showlayer(layer), PyObject)
 	close()
 end
 
-@testset "show a CtPixels" begin
+@testset "showctpixels" begin
 	@test isa(showctpixels(ctpixels), PyObject)
 	close()
 	@test isa(showctpixels(ctpixels, layer), PyObject)
 	close()
 end
 
-@testset "show a Mikrubi field" begin
+@testset "showfield" begin
 	@test isa(showfield(field), PyObject)
 	close()
 	@test isa(showfield(field, layer), PyObject)

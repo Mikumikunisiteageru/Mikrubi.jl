@@ -55,13 +55,6 @@ function geom2mat_multipolygon(multipolygon)
 	return parts, mat
 end
 
-# function dimseq(dim)
-# 	dimct = DD.maybeshiftlocus(DD.Center(), dim)
-# 	dimsh = step(dimct) / 2
-# 	ticks = collect(dimct)
-# 	return vcat(ticks .- dimsh, ticks[end] + dimsh)
-# end
-
 function coords(grid::Raster)
 	x, y = dims(grid)[1:2]
 	xseq = dimseq(x)

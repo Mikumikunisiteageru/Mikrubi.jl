@@ -12,7 +12,7 @@ Many species occurrence records from specimens and publications are based on reg
 
 ## Installation
 
-Mikrubi currently requires Julia v1.7.0 or higher. This registered package can be installed inside the Julia REPL by typing
+Mikrubi.jl currently requires Julia v1.7.0 or higher. This registered package can be installed inside the Julia REPL by typing
 ```julia
 ]add Mikrubi
 ```
@@ -63,4 +63,12 @@ The equivalent BibTeX file for citation is available at [CITATION.bib](https://g
 	url = {https://onlinelibrary.wiley.com/doi/abs/10.1111/ecog.06283},
 	eprint = {https://onlinelibrary.wiley.com/doi/pdf/10.1111/ecog.06283},
 }
+```
+
+#### Patch to the Ecography paper
+
+Due to [an update of GADM.jl on May 16, 2023](https://github.com/JuliaGeo/GADM.jl/commit/f7bebc9c358a9d00540e42e90e47ad7b6ca145bf) which fetches GADM data v4.1 rather than v3.6, the district-level map of Nepal now has index `3` (no longer `1` as in the paper). The corresponding line in the code example from the paper (see also [jui.jl](https://github.com/Mikumikunisiteageru/Mikrubi.jl/blob/master/examples/prinsepia/jui.jl)) should be changed to
+
+```julia
+shptable = readshape(shppath, 3) # District-level
 ```

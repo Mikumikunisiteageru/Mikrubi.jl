@@ -10,7 +10,7 @@ import RasterDataSources; const RDS = RasterDataSources
 import Rasters
 
 @testset "GADM" begin
-	global shppath = GADM.download("NPL")
+	global shppath = GADM.download("NPL"; version="3.6")
 	@test isdir(shppath)
 	shpfiles = readdir(shppath, join=false, sort=true)
 	@test length(shpfiles) == 2

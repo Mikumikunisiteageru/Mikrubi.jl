@@ -77,3 +77,13 @@ end
 	@test Mikrubi.decomparams([1,2,3,4,5,6,7,8,9,10], 3) == 
 		([1 0 0; 2 3 0; 4 5 6], [7, 8, 9], 10)
 end
+
+@testset "sortfilenames!" begin
+	@test_throws ErrorException Mikrubi.sortfilenames!(String[])
+	@test Mikrubi.sortfilenames!(["123"]) == ["123"]
+	@test Mikrubi.sortfilenames!(["124", "123"]) == ["123", "124"]
+	@test Mikrubi.sortfilenames!(["bio_9.tif", "bio_10.tif", 
+		"bio_1.tif"]) == ["bio_1.tif", "bio_9.tif", "bio_10.tif"]
+	@test Mikrubi.sortfilenames!(["bio_09.tif", "bio_10.tif", 
+		"bio_01.tif"]) == ["bio_01.tif", "bio_09.tif", "bio_10.tif"]
+end

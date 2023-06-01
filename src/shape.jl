@@ -67,7 +67,6 @@ Find all properties of features in `shptable` where entries are all unique and
 either integers or strings (types whose `isequal` is well-defined).
 """
 function goodcolumns(shptable::AG.IFeatureLayer)
-	n = AG.nfield(shptable)
 	fields = Dict{String, Vector}()
 	feature = first(shptable)
 	for i = 0 : AG.nfield(shptable)-1

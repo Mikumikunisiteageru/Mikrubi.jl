@@ -37,10 +37,18 @@ end
 @testset "readshape" begin
 	@test_throws ErrorException readshape(joinpath(shppath, gpkg))
 	@test_throws ErrorException readshape(joinpath(shppath, gpkg), -1)
-	readshape(joinpath(shppath, gpkg), 4)
+	@test isa(readshape(joinpath(shppath, gpkg), 4), AG.IFeatureLayer)
 	@test_throws ErrorException readshape(joinpath(shppath, gpkg), 5)
+	@test_throws ErrorException readshape(shppath; extset=[])
 	@test_throws ErrorException readshape(shppath)
 	@test_throws ErrorException readshape(shppath, -1)
+	body, tail = splitext(gpkg)
+	gpkg_ = body * "_" * tail
+	cp(joinpath(shppath, gpkg), joinpath(shppath, gpkg_))
+	msg = Mikrubi.tw"Multiple files with extensions in `extset` exist 
+		in the directory! Now choose a random one to read."
+	@test_logs (:warn, msg) readshape(shppath, 3)
+	rm(joinpath(shppath, gpkg_))
 	global shptable = readshape(shppath, 3)
 	@test isa(shptable, AG.IFeatureLayer)
 	@test AG.getname(shptable) == "ADM_ADM_3"
@@ -48,6 +56,18 @@ end
 	pt = AG.getgeom(AG.getgeom(AG.getgeom(first(shptable), 0), 0), 0)
 	@test isapprox(AG.getx(pt, 0), 85.406402588)
 	@test isapprox(AG.gety(pt, 0), 27.632347107)
+end
+
+@testset "goodcolumns" begin
+	gc = goodcolumns(shptable)
+	@test sort!(collect(keys(gc))) == ["GID_3", "NAME_3"]
+end
+
+@testset "lookup" begin
+	@test_throws ErrorException lookup(shptable)
+	@test_throws ErrorException lookup(shptable, "Any", 1)
+	@test_throws ErrorException lookup(shptable, :Any, 1)
+	@test nothing === lookup(shptable, "GID_3", 1)
 end
 
 @testset "readlayers" begin
@@ -90,6 +110,18 @@ end
 	@test isa(Mikrubi.getpixels(ctpixels), Vector{Int})
 	@test length(Mikrubi.getcounties(ctpixels)) == 1127
 	@test length(Mikrubi.getpixels(ctpixels)) == 1127
+end
+
+@testset "buildfield" begin
+	layers_ = deepcopy(layers)
+	ctpixels_ = deepcopy(ctpixels)
+	ctpixels_.indices[1, 1, 1] = 1
+	push!(ctpixels_.list, (76, 1))
+	Mikrubi.masklayers!(layers_, ctpixels_)
+	dimlower = Mikrubi.DimLower(layers_)
+	idx, ematrix, elayers = dimlower(layers_; rabsthres=0.8, nprincomp=3)
+	field = Mikrubi.buildfield(ctpixels_, idx, ematrix, first(layers_))
+	@test isa(field, MikrubiField)
 end
 
 @testset "DimLower" begin
@@ -154,6 +186,15 @@ end
 	@test nothing === writefield(path, f0)
 	str = String(read(path))
 	@test str[1:12] == "I\tL\tL\tV\tV\tV\n"
+	pathformula(s) = joinpath(tempdir(), "layer_$s.tif")
+	@test nothing === writelayers(pathformula.(5:7), yl0)
+	yl0_ = readlayers(pathformula.(5:7))
+	@test length(yl0_) == 3
+	@test size(yl0_) == (2160, 1080, 1)
+	@test nothing === writelayers(pathformula("*"), yl0)
+	yl0_ = readlayers(pathformula.(1:3))
+	@test length(yl0_) == 3
+	@test size(yl0_) == (2160, 1080, 1)
 	global field, ylayers = makefield(layers, shptable);
 	@test sum(Rasters.boolmask(layers)) == 808053
 	@test yl0 == ylayers

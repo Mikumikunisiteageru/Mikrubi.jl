@@ -67,7 +67,7 @@ function sortfilenames!(filenames::AbstractVector{<:AbstractString})
 	elseif length(filenames) == 1
 		@info textwrap("Only one file \"$(splitpath(filenames[1])[end])\" 
 			recognized in the directory.")
-		return
+		return filenames
 	end
 	s = 1
 	while allsame([fn[s] for fn = filenames])

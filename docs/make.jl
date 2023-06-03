@@ -3,6 +3,7 @@
 using Mikrubi
 
 using Documenter
+using PyPlot
 
 makedocs(
 	sitename = "Mikrubi.jl",

@@ -46,6 +46,8 @@ writelayer("path/to/output/geodist.tif", geodist)
 
 An introduction of this package and the model it implements has been published on [Ecography (10.1111/ecog.06283)](https://onlinelibrary.wiley.com/doi/full/10.1111/ecog.06283).
 
+Thank Michael Krabbe Borregaard @mkborregaard and Rafael Schouten @rafaqz for reviewing the code and the manuscript and giving greatly constructive opinions!
+
 If you apply the package or the model in your research, please cite them via the paper above or as the following after substituting the version:
 ```
 Yang, Y.-C., Zhang, Q. and Chen, Z.-D. 2023. Mikrubi: a model for species distributions using region-based records. – Ecography 2023: e06283 (ver. 1.3.2).

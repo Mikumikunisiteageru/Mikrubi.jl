@@ -5,7 +5,7 @@
 [![CI](https://github.com/Mikumikunisiteageru/Mikrubi.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/Mikumikunisiteageru/Mikrubi.jl/actions/workflows/CI.yml)
 [![Codecov](https://codecov.io/gh/Mikumikunisiteageru/Mikrubi.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/Mikumikunisiteageru/Mikrubi.jl)
 [![Aqua.jl Quality Assurance](https://img.shields.io/badge/Aquajl-%F0%9F%8C%A2-aqua.svg)](https://github.com/JuliaTesting/Aqua.jl)
-[![Mikrubi downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/Mikrubi)](https://pkgs.genieframework.com?packages=Mikrubi)
+[![Mikrubi Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/Mikrubi)](https://pkgs.genieframework.com?packages=Mikrubi)
 
 *Mikrubi: a model for species distributions using region-based records*
 

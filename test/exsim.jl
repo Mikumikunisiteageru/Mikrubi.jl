@@ -1,5 +1,6 @@
 # test/exsim.jl
 
+using Logistics
 using Mikrubi
 using Test
 
@@ -43,6 +44,10 @@ end
 	@test isapprox(pc[39], 3.253660629809474e-8)
 	@test isapprox(pc[239], 0.2687645074317543)
 	@test isapprox(pc[248], 1.3446977198405818e-8)
+	pcl = probcounties(Logistic, asym, model)
+	@test isapprox(pcl[39], 3.253660629809474e-8)
+	@test isapprox(pcl[239], 0.2687645074317543)
+	@test isapprox(pcl[248], 1.3446977198405818e-8)
 	pp = Mikrubi.probpixels(asym, model)
 	@test pp == predict(asym.vars, model)
 	@test isapprox(pp[39], 3.253660629809474e-8)

@@ -348,8 +348,10 @@ probpixels(field::MikrubiField, model::MikrubiModel) =
 	predict(field.vars, model)
 
 """
-	probcounties(field::MikrubiField{T, U, V}, model::MikrubiModel{V}) 
+	probcounties(field::MikrubiField, model::MikrubiModel) 
 		:: Dict{<:Any, <:AbstractFloat}
+	probcounties(::Type{<:Logistic}, field::MikrubiField, model::MikrubiModel) 
+		:: Dict{<:Any, <:Logistic}
 
 Compute the probability for every county to be occupied in the `field`. 
 """
@@ -367,9 +369,23 @@ function probcounties(field::MikrubiField{T, U, V},
 	end
 	Ppresence
 end
+function probcounties(::Type{<:Logistic}, field::MikrubiField{T, U, V}, 
+		model::MikrubiModel{V}) where {T, U <: Real, V <: AbstractFloat}
+	lpabsence = pabsence(field, model.params)
+	Pabsence = Dict{T, Logistic{V}}()
+	for i = 1:field.npixel
+		id = field.ctids[i]
+		Pabsence[id] = lpabsence[i] * get(Pabsence, id, one(Logistic{V}))
+	end
+	Ppresence = Dict{T, Logistic{V}}()
+	for id = field.ids
+		Ppresence[id] = complement(Pabsence[id])
+	end
+	Ppresence
+end
 
 """
-	samplecounties(field::MikrubiField, model::MikrubiModel) :: Vector{Any}
+	samplecounties(field::MikrubiField, model::MikrubiModel) :: Vector
 
 Sample counties according to their probability of being occupied.
 """

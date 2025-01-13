@@ -118,8 +118,8 @@ end
 	ctpixels_.indices[1, 1, 1] = 1
 	push!(ctpixels_.list, (76, 1))
 	Mikrubi.masklayers!(layers_, ctpixels_)
-	dimlower = Mikrubi.DimLower(layers_)
-	idx, ematrix, elayers = dimlower(layers_; rabsthres=0.8, nprincomp=3)
+	idx, ematrix, elayers, _ = Mikrubi.godimlower(layers_, 
+		Mikrubi.DimLowerConfig(rabsthres=0.8, nprincomp=3))
 	field = Mikrubi.buildfield(ctpixels_, idx, ematrix, first(layers_))
 	@test isa(field, MikrubiField)
 end
@@ -147,9 +147,9 @@ end
 		-0.13801464 -0.013789057 0.047764596; 
 		-0.01994192 0.0015393574 0.021920582; 
 		-0.008666443 0.008949931 0.0048636016])
-	f_, yl_, dimlower = Mikrubi._makefield(layers, ctpixels, 0.8, 3)
+	f_, yl_, dimlower = yieldfield(layers, ctpixels)
 	@test isa(dimlower, Mikrubi.DimLower{Float64})
-	@test dimlower.new == false
+	@test dimlower.n == 19
 	@test dimlower.colid == [2, 3, 5, 7, 12, 14, 17, 19]
 	@test isa(dimlower.colmean, Matrix{Float64})
 	@test size(dimlower.colmean) == (1, 8)
@@ -166,7 +166,7 @@ end
 		-0.13801464 -0.013789057 0.047764596; 
 		-0.01994192 0.0015393574 0.021920582; 
 		-0.008666443 0.008949931 0.0048636016])
-	idx, ematrix, elayers = dimlower(layers; rabsthres=0.8, nprincomp=3)
+	idx, ematrix, elayers = Mikrubi.godimlower(layers, dimlower)
 	@test isa(idx, Vector{Int})
 	@test length(idx) == 808053
 	@test sum(idx) == 923357905365
@@ -176,7 +176,7 @@ end
 end
 
 @testset "makefield" begin
-	f0, yl0 = makefield(layers, ctpixels)
+	f0, yl0, _ = yieldfield(layers, ctpixels)
 	@test sprint(show, f0) === 
 		"Mikrubi Field: geo_dim = 2, env_dim = 3, 1127 pixels, and 75 counties"
 	@test sum(Rasters.boolmask(layers)) == 808053
@@ -210,16 +210,6 @@ end
 	@test isapprox(collect(maximum(ylayers)), 
 		Float32[3.5854542, 4.006934, 2.3392994])
 	@test isapprox(sum.(collect(ylayers[bm])), zeros(3), atol=1e-10)
-	f1, yl1, pyl1 = makefield(layers, ctpixels, layers)
-	@test sum(Rasters.boolmask(layers)) == 808053
-	@test yl0 == yl1
-	@test isapprox(collect(yl1[bm]), collect(pyl1[bm]))
-	@test sum(Rasters.boolmask(pyl1)) == 808053
-	f2, yl2, pyl2 = makefield(layers, shptable, layers)
-	@test sum(Rasters.boolmask(layers)) == 808053
-	@test yl0 == yl2
-	@test isapprox(collect(yl2[bm]), collect(pyl2[bm]))
-	@test sum(Rasters.boolmask(pyl2)) == 808053
 end
 
 @testset "lookup" begin

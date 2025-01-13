@@ -26,7 +26,8 @@ import ColorTypes: RGB
 
 export logistic, loglogistic
 export readshape, goodcolumns, lookup, rasterize
-export readlayers, writelayer, writelayers, makefield
+export readlayers, writelayer, writelayers, makefield, yieldfield
+export DimLowerConfig
 export MikrubiField, readfield, writefield
 export MikrubiModel, readmodel, writemodel
 export readlist, writelist, fit

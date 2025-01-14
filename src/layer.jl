@@ -214,7 +214,8 @@ function makelayers(matrix::AbstractMatrix, idx::AbstractVector, grid::Raster)
 end
 
 """
-	makelayer(vector::AbstractVector, idx::AbstractVector, grid::Raster)
+	makelayer(vector::AbstractVector, idx::AbstractVector, grid::Raster) 
+		:: Raster
 
 Make a `Raster` from the `grid` and values in `vector`. 
 
@@ -342,6 +343,21 @@ function princompvars(smatrix::AbstractMatrix; nprincomp=3)
 	return colmean, projwstd
 end
 
+"""
+	DimLowerConfig
+
+	DimLowerConfig(; rabsthres=0.8, nprincomp=3)
+
+A type for configuration for dimensionality reduction.
+
+# Keyword arguments
+
+- `rabsthres`: threshold of collinearity.
+Absolute value of Pearson correlation efficient greater than this threshold 
+is identified as collinearity and the two variables are thus incompatible. 
+- `nprincomp`: expected number of principal components of the variables.
+
+"""
 struct DimLowerConfig
 	rabsthres::Float64
 	nprincomp::Int
@@ -351,7 +367,10 @@ end
 """
 	DimLower
 
-	DimLower()
+	DimLower{T<:AbstractFloat}(n::Int, colid::Vector{Int}, 
+		colmean::Matrix{T}, projwstd::Matrix{T})
+	DimLower(n::Integer, colid::AbstractVector{<:Integer}, 
+		colmean::AbstractMatrix{<:Real}, projwstd::AbstractMatrix{<:Real})
 
 A container for transformation parameters used in `makefield`.
 """
@@ -366,6 +385,16 @@ DimLower(n::Integer, colid::AbstractVector{<:Integer},
 		DimLower(convert(Int, n), convert(Vector{Int}, colid), 
 			promote(float(colmean), projwstd)...)
 
+"""
+	godimlower(layers::RasterStack, config::DimLowerConfig) 
+		:: Tuple{Vector{Int}, Matrix, RasterStack, DimLower}
+	godimlower(layers::RasterStack, dimlower::DimLower) 
+		:: Tuple{Vector{Int}, Matrix, RasterStack, DimLower}
+
+Process a stack of layers by dimensionality reduction. When `dimlower` is 
+provided, the processing parameters are assigned; otherwise they are selected 
+according to the configuration.
+"""
 function godimlower(layers::RasterStack, config::DimLowerConfig)
 	n = length(layers)
 	matrix, idx = extractlayers(layers)
@@ -378,7 +407,6 @@ function godimlower(layers::RasterStack, config::DimLowerConfig)
 	dimlower = DimLower(n, colid, colmean, projwstd)
 	return idx, ematrix, elayers, dimlower
 end
-
 function godimlower(layers::RasterStack, dimlower::DimLower)
 	dimlower.n == length(layers) || 
 		error("length of `layers` incompatible with `dimlower`!")
@@ -390,43 +418,38 @@ function godimlower(layers::RasterStack, dimlower::DimLower)
 end
 
 """
-	makefield(layers::RasterStack, shptable; rabsthres=0.8, nprincomp=3)
-		:: Tuple{MikrubiField, RasterStack}
+	makefield(layers::RasterStack, shptable; 
+		config=DimLowerConfig(rabsthres=0.8, nprincomp=3))
+			:: Tuple{MikrubiField, RasterStack}
 
 Create a `MikrubiField` as well as processed variable layers from `layers`  
 and `shptable`, by 
-0. (rasterizing the `shptable` to `ctpixels` using `rasterize`,) 
 1. masking the `layers` with `ctpixels` (using `Mikrubi.masklayers!`), 
 2. extracting non-missing pixels from `layers` (using `Mikrubi.extractlayers`),
 3. selecting less correlated variables (using `Mikrubi.selectvars`), and 
 4. doing the principal component analysis (using `Mikrubi.princompvars`).
 
-# Optional keyword arguments
+Configuration including `rabsthres` and `nprincomp` can be passed in as a 
+keyword argument; see [`DimLowerConfig`](@ref).
 
-- `rabsthres`: threshold of collinearity.
-Absolute value of Pearson correlation efficient greater than this threshold 
-is identified as collinearity and the two variables are thus incompatible. 
-- `nprincomp`: expected number of principal components of the variables.
-
-# Notes about `players`
-
-When `players` is present in the argument list, raster layers it contains 
-experience the same process including subsetting, selecting, and taking 
-principal components, and results are packed and returned in the third place. 
-User must assure that `players` has the same length as `layers`, and 
-their elements are corresponding in order. This would be useful when the 
-prediction is in another geographic range or at another time.
+A less detailed version of [`yieldfield`](@ref).
 """
 makefield(layers::RasterStack, shptable; 
 	config=DimLowerConfig(rabsthres=0.8, nprincomp=3)) = 
 		yieldfield(layers, shptable, config)[1:2]
-# function makefield(layers::RasterStack, shptable; rabsthres, nprincomp)
-# 	@warn textwrap("This syntax will be deprecated. Embed `rabsthres` and 
-# 		`nprincomp` into a `DimLowerConfig` instance instead.")
-# 	return yieldfield(layers, shptable, 
-# 		DimLowerConfig(rabsthres=rabsthres, nprincomp=nprincomp))[1:2]
-# end
 
+"""
+	yieldfield(layers::RasterStack, ctpixels::CtPixels, 
+		dimlowerorconfig=DimLowerConfig(rabsthres=0.8, nprincomp=3)) :: 
+			Tuple{MikrubiField, RasterStack, DimLower}
+	yieldfield(layers::RasterStack, shptable, 
+		dimlowerorconfig=DimLowerConfig(rabsthres=0.8, nprincomp=3)) :: 
+			Tuple{MikrubiField, RasterStack, DimLower}
+
+Return a `MikrubiField`, processed variable layers, and the `DimLower`.
+
+A more detailed version of [`makefield`](@ref).
+"""
 function yieldfield(layers::RasterStack, ctpixels::CtPixels, 
 		dimlowerorconfig=DimLowerConfig(rabsthres=0.8, nprincomp=3))
 	layers = deepcopy(layers)

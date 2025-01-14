@@ -103,10 +103,20 @@ Mikrubi.ispoly
 
 In Mikrubi, climatic factors after being read in typically undergo some processing steps together with shapefile inside the function [`makefield`](@ref), which returns a Mikrubi field and a stack of extracted components in raster layers. The two outputs can be used for training and prediction.
 
-Sometimes it is also required to apply a model to another circumstance (different time or different space), in which case another series of parallel climatic factor layers need to be processed in exactly the same way as those used to generate the Mikrubi field (so that their climatic meanings are the same). Such layers need to be put in the third place in the input argument list for [`makefield`](@ref), and those parallelly extracted components are returned in the third place in output as well.
-
 ```@docs
 makefield
+```
+
+Since v1.4.0, Mikrubi supports parallel dimensionality reduction. Sometimes it is also required to apply a model to another circumstance (different time or different space), in which case another series of parallel climatic factor layers need to be processed in exactly the same way as those used to generate the Mikrubi field (so that their climatic meanings are the same). For such purpose, use the more detailed version [`yieldfield`](@ref) for the current circumstance, and pass `dimlower`, the third output parameter, again using [`yieldfield`](@ref) to another circumstance.
+
+```@docs
+yieldfield
+```
+
+To adjust the manner how Mikrubi reduces the dimensionality of the variables, configuration should be provided in a [`DimLowerConfig`](@ref) instance.
+
+```@docs
+DimLowerConfig
 ```
 
 #### Internal functions
